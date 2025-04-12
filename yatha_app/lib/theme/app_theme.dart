@@ -1,44 +1,27 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Paleta de colores retro para una aplicación de cobranza y préstamos
-  static const Color primaryColor = Color(0xFF1F6E5C); // Verde oscuro
-  static const Color secondaryColor = Color(0xFFE9B44C); // Dorado/Amarillo
-  static const Color tertiaryColor = Color(0xFFAD343E); // Rojo oscuro para alertas
-  static const Color neutralColor = Color(0xFF2C363F); // Gris oscuro
-  static const Color backgroundColor = Color(0xFFF5F5F5); // Fondo claro
-  static const Color surfaceColor = Color(0xFFFFFFFF); // Superficie blanca
-  static const Color errorColor = Color(0xFFB00020); // Rojo error
-
-  static const ColorScheme colorScheme = ColorScheme(
+  static const primaryColor = Color(0xFF1565C0);
+  static const secondaryColor = Color(0xFF2E7D32);
+  static const tertiaryColor = Color(0xFFD32F2F);
+  
+  static const colorScheme = ColorScheme(
+    brightness: Brightness.light,
     primary: primaryColor,
     onPrimary: Colors.white,
-    primaryContainer: Color(0xFFB8E5D9),
-    onPrimaryContainer: Color(0xFF0A3D31),
     secondary: secondaryColor,
-    onSecondary: Color(0xFF3C2E00),
-    secondaryContainer: Color(0xFFF7E8C3),
-    onSecondaryContainer: Color(0xFF553F00),
-    tertiary: tertiaryColor,
-    onTertiary: Colors.white,
-    tertiaryContainer: Color(0xFFFFDAD9),
-    onTertiaryContainer: Color(0xFF410008),
-    error: errorColor,
+    onSecondary: Colors.white,
+    error: Color(0xFFB00020),
     onError: Colors.white,
-    errorContainer: Color(0xFFFFDAD6),
-    onErrorContainer: Color(0xFF410002),
-    background: backgroundColor,
-    onBackground: neutralColor,
-    surface: surfaceColor,
-    onSurface: neutralColor,
-    surfaceVariant: Color(0xFFEAE1D9),
-    onSurfaceVariant: Color(0xFF4D4639),
-    outline: Color(0xFF7C736A),
-    shadow: Color(0xFF000000),
-    inverseSurface: Color(0xFF303030),
-    onInverseSurface: Color(0xFFEFEFEF),
-    inversePrimary: Color(0xFF8CD1C3),
-    brightness: Brightness.light,
+    background: Color(0xFFF5F5F5),
+    onBackground: Color(0xFF121212),
+    surface: Colors.white,
+    onSurface: Color(0xFF121212),
+    primaryContainer: Color(0xFFBBDEFB),
+    onPrimaryContainer: Color(0xFF0D47A1),
+    secondaryContainer: Color(0xFFC8E6C9),
+    onSecondaryContainer: Color(0xFF1B5E20),
+    shadow: Colors.black,
   );
 
   // Estilos para efectos de blur
@@ -108,4 +91,3 @@ class AppTheme {
     );
   }
 }
-

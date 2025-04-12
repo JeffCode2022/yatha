@@ -10,14 +10,14 @@ class ProfileDrawer extends StatelessWidget {
   final VoidCallback onLogout;
 
   const ProfileDrawer({
-    Key? key,
+    super.key,
     required this.userName,
     required this.userRole,
     required this.userEmail,
     this.userAvatar,
     required this.menuItems,
     required this.onLogout,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +33,7 @@ class ProfileDrawer extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [
                     AppTheme.primaryColor,
-                    AppTheme.primaryColor.withOpacity(0.8),
+                    AppTheme.primaryColor.withAlpha(20),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -48,17 +48,19 @@ class ProfileDrawer extends StatelessWidget {
                   CircleAvatar(
                     radius: 40,
                     backgroundColor: Colors.white,
-                    backgroundImage: userAvatar != null ? NetworkImage(userAvatar!) : null,
-                    child: userAvatar == null
-                        ? Text(
-                            userName.substring(0, 1).toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
-                            ),
-                          )
-                        : null,
+                    backgroundImage:
+                        userAvatar != null ? NetworkImage(userAvatar!) : null,
+                    child:
+                        userAvatar == null
+                            ? Text(
+                              userName.substring(0, 1).toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            )
+                            : null,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -71,9 +73,12 @@ class ProfileDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withAlpha(50),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -89,7 +94,7 @@ class ProfileDrawer extends StatelessWidget {
                   Text(
                     userEmail,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withAlpha(100),
                       fontSize: 14,
                     ),
                   ),
@@ -100,31 +105,40 @@ class ProfileDrawer extends StatelessWidget {
             Expanded(
               child: ListView.builder(
                 itemCount: menuItems.length,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 itemBuilder: (context, index) {
                   final item = menuItems[index];
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
-                      color: item.isSelected
-                          ? AppTheme.primaryColor.withOpacity(0.1)
-                          : Colors.transparent,
+                      color:
+                          item.isSelected
+                              ? AppTheme.primaryColor.withAlpha(20)
+                              : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: ListTile(
                       leading: Icon(
                         item.icon,
-                        color: item.isSelected
-                            ? AppTheme.primaryColor
-                            : AppTheme.colorScheme.onSurfaceVariant,
+                        color:
+                            item.isSelected
+                                ? AppTheme.primaryColor
+                                : AppTheme.colorScheme.onSurfaceVariant,
                       ),
                       title: Text(
                         item.title,
                         style: TextStyle(
-                          color: item.isSelected
-                              ? AppTheme.primaryColor
-                              : AppTheme.colorScheme.onSurface,
-                          fontWeight: item.isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color:
+                              item.isSelected
+                                  ? AppTheme.primaryColor
+                                  : AppTheme.colorScheme.onSurface,
+                          fontWeight:
+                              item.isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                         ),
                       ),
                       onTap: item.onTap,
@@ -138,10 +152,7 @@ class ProfileDrawer extends StatelessWidget {
             ),
             const Divider(),
             ListTile(
-              leading: Icon(
-                Icons.logout,
-                color: AppTheme.tertiaryColor,
-              ),
+              leading: Icon(Icons.logout, color: AppTheme.tertiaryColor),
               title: Text(
                 'Cerrar Sesión',
                 style: TextStyle(
@@ -172,4 +183,3 @@ class DrawerMenuItem {
     required this.onTap,
   });
 }
-

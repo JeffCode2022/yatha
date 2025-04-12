@@ -2,42 +2,42 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class AnimatedButton extends StatefulWidget {
-  final Widget child;
+  final String text;
+  final IconData? icon;
   final VoidCallback onPressed;
-  final Color color;
-  final Color textColor;
+  final Color? backgroundColor;
+  final Color? textColor;
   final double height;
   final double width;
-  final double borderRadius;
-  final bool isOutlined;
+  final bool isLoading;
 
   const AnimatedButton({
     Key? key,
-    required this.child,
+    required this.text,
+    this.icon,
     required this.onPressed,
-    this.color = AppTheme.primaryColor,
-    this.textColor = Colors.white,
-    this.height = 56,
+    this.backgroundColor,
+    this.textColor,
+    this.height = 50,
     this.width = double.infinity,
-    this.borderRadius = 12,
-    this.isOutlined = false,
+    this.isLoading = false,
   }) : super(key: key);
 
   @override
   State<AnimatedButton> createState() => _AnimatedButtonState();
 }
 
-class _AnimatedButtonState extends State<AnimatedButton> with SingleTickerProviderStateMixin {
+class _AnimatedButtonState extends State<AnimatedButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  bool _isPressed = false;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 100),
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(
@@ -53,34 +53,13 @@ class _AnimatedButtonState extends State<AnimatedButton> with SingleTickerProvid
     super.dispose();
   }
 
-  void _onTapDown(TapDownDetails details) {
-    _controller.forward();
-    setState(() {
-      _isPressed = true;
-    });
-  }
-
-  void _onTapUp(TapUpDetails details) {
-    _controller.reverse();
-    setState(() {
-      _isPressed = false;
-    });
-    widget.onPressed();
-  }
-
-  void _onTapCancel() {
-    _controller.reverse();
-    setState(() {
-      _isPressed = false;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) => _controller.reverse(),
+      onTapCancel: () => _controller.reverse(),
+      onTap: widget.isLoading ? null : widget.onPressed,
       child: AnimatedBuilder(
         animation: _scaleAnimation,
         builder: (context, child) {
@@ -89,49 +68,50 @@ class _AnimatedButtonState extends State<AnimatedButton> with SingleTickerProvid
             child: Container(
               height: widget.height,
               width: widget.width,
-              decoration: widget.isOutlined
-                  ? BoxDecoration(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(widget.borderRadius),
-                      border: Border.all(
-                        color: widget.color,
-                        width: 2,
-                      ),
-                      boxShadow: _isPressed
-                          ? []
-                          : [
-                              BoxShadow(
-                                color: widget.color.withOpacity(0.2),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                    )
-                  : BoxDecoration(
-                      color: widget.color,
-                      borderRadius: BorderRadius.circular(widget.borderRadius),
-                      boxShadow: _isPressed
-                          ? []
-                          : [
-                              BoxShadow(
-                                color: widget.color.withOpacity(0.3),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                    ),
-              child: Center(
-                child: DefaultTextStyle(
-                  style: TextStyle(
-                    color: widget.isOutlined ? widget.color : widget.textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
+              decoration: BoxDecoration(
+                color: widget.isLoading
+                    ? (widget.backgroundColor ?? AppTheme.primaryColor).withOpacity(0.7)
+                    : widget.backgroundColor ?? AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: (widget.backgroundColor ?? AppTheme.primaryColor).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                  child: widget.child,
-                ),
+                ],
+              ),
+              child: Center(
+                child: widget.isLoading
+                    ? SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: widget.textColor ?? Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (widget.icon != null) ...[
+                            Icon(
+                              widget.icon,
+                              color: widget.textColor ?? Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Text(
+                            widget.text,
+                            style: TextStyle(
+                              color: widget.textColor ?? Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ),
           );
@@ -140,4 +120,3 @@ class _AnimatedButtonState extends State<AnimatedButton> with SingleTickerProvid
     );
   }
 }
-

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_button.dart';
-import 'package:lottie/lottie.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -12,11 +13,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
-  final _emailController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  String? _errorMessage;
   bool _obscurePassword = true;
-  bool _isLoading = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -32,14 +32,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+        curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
       ),
     );
     
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: const Interval(0.2, 0.8, curve: Curves.easeOut),
+        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
       ),
     );
     
@@ -48,281 +48,229 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
-  void _togglePasswordVisibility() {
-    setState(() {
-      _obscurePassword = !_obscurePassword;
-    });
-  }
+  void _login() async {
+    if (_formKey.currentState!.validate()) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.login(
+        _usernameController.text,
+        _passwordController.text,
+      );
 
-  void _handleLogin() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    // Simple validation
-    if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorMessage = 'Por favor ingrese email y contraseña';
-      });
-      return;
-    }
-
-    // Show loading animation
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Mock authentication
-    if (email.contains('gestor')) {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/gestor/dashboard');
+      if (success && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
       }
-    } else if (email.contains('supervisor')) {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/supervisor/dashboard');
-      }
-    } else {
-      setState(() {
-        _errorMessage = 'Credenciales inválidas';
-        _isLoading = false;
-      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    
     return Scaffold(
-      backgroundColor: AppTheme.colorScheme.background,
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.dark,
-        child: SafeArea(
-          child: Center(
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, _) {
+          return SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo y animación
-                      Container(
-                        height: 180,
-                        width: 180,
-                        decoration: BoxDecoration(
-                          color: AppTheme.colorScheme.primaryContainer.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Lottie.network(
-                            'https://assets9.lottiefiles.com/packages/lf20_jcikwtux.json',
+              child: Container(
+                height: size.height - MediaQuery.of(context).padding.top,
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Logo y título
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        children: [
+                          Container(
                             height: 120,
                             width: 120,
-                            fit: BoxFit.contain,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryColor.withOpacity(0.3),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'Y',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 72,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Yatha',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Gestión de Préstamos',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                    
+                    // Formulario de login
+                    SlideTransition(
+                      position: _slideAnimation,
+                      child: FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Campo de usuario
+                              TextFormField(
+                                controller: _usernameController,
+                                decoration: InputDecoration(
+                                  labelText: 'Usuario',
+                                  prefixIcon: const Icon(Icons.person_outline),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Por favor ingresa tu usuario';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              
+                              // Campo de contraseña
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                decoration: InputDecoration(
+                                  labelText: 'Contraseña',
+                                  prefixIcon: const Icon(Icons.lock_outline),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_outlined
+                                          : Icons.visibility_off_outlined,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _obscurePassword = !_obscurePassword;
+                                      });
+                                    },
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Por favor ingresa tu contraseña';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 32),
+                              
+                              // Botón de login
+                              AnimatedButton(
+                                text: 'INICIAR SESIÓN',
+                                icon: Icons.login,
+                                onPressed: _login,
+                                isLoading: authProvider.isLoading,
+                                height: 56,
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 32),
-                      
-                      // Título y subtítulo
-                      Text(
-                        'YATHA',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.colorScheme.primary,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Sistema de Gestión de Préstamos',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                      
-                      // Formulario de login
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: AppTheme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.colorScheme.shadow.withOpacity(0.1),
-                              blurRadius: 20,
-                              spreadRadius: 5,
-                              offset: const Offset(0, 10),
+                    ),
+                    
+                    // Mensaje de error
+                    if (authProvider.errorMessage != null) ...[
+                      const SizedBox(height: 24),
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.red.withOpacity(0.3),
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Iniciar Sesión',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.colorScheme.onSurface,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Ingrese sus credenciales para acceder al sistema',
-                              style: TextStyle(
-                                color: AppTheme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            
-                            // Mensaje de error
-                            if (_errorMessage != null)
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.colorScheme.errorContainer,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.error_outline,
-                                      color: AppTheme.colorScheme.error,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        _errorMessage!,
-                                        style: TextStyle(
-                                          color: AppTheme.colorScheme.error,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (_errorMessage != null) const SizedBox(height: 16),
-                            
-                            // Campo de email
-                            TextField(
-                              controller: _emailController,
-                              decoration: InputDecoration(
-                                labelText: 'Email',
-                                prefixIcon: Icon(
-                                  Icons.email_outlined,
-                                  color: AppTheme.colorScheme.primary,
-                                ),
-                                hintText: 'ejemplo@yatha.com',
-                              ),
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                            ),
-                            const SizedBox(height: 16),
-                            
-                            // Campo de contraseña
-                            TextField(
-                              controller: _passwordController,
-                              decoration: InputDecoration(
-                                labelText: 'Contraseña',
-                                prefixIcon: Icon(
-                                  Icons.lock_outline,
-                                  color: AppTheme.colorScheme.primary,
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                    color: AppTheme.colorScheme.primary,
-                                  ),
-                                  onPressed: _togglePasswordVisibility,
-                                ),
-                              ),
-                              obscureText: _obscurePassword,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: (_) => _handleLogin(),
-                            ),
-                            const SizedBox(height: 24),
-                            
-                            // Botón de login
-                            _isLoading
-                                ? Center(
-                                    child: CircularProgressIndicator(
-                                      color: AppTheme.colorScheme.primary,
-                                    ),
-                                  )
-                                : AnimatedButton(
-                                    onPressed: _handleLogin,
-                                    child: const Text('Iniciar Sesión'),
-                                  ),
-                            
-                            const SizedBox(height: 16),
-                            
-                            // Texto de ayuda
-                            Center(
-                              child: TextButton(
-                                onPressed: () {
-                                  // Mostrar diálogo de ayuda
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Ayuda de Acceso'),
-                                      content: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: const [
-                                          Text('Para acceder como Gestor:'),
-                                          Text('Email: gestor@yatha.com'),
-                                          Text('Contraseña: cualquier texto'),
-                                          SizedBox(height: 16),
-                                          Text('Para acceder como Supervisor:'),
-                                          Text('Email: supervisor@yatha.com'),
-                                          Text('Contraseña: cualquier texto'),
-                                        ],
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text('Entendido'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
+                              const SizedBox(width: 12),
+                              Expanded(
                                 child: Text(
-                                  '¿Necesitas ayuda para acceder?',
-                                  style: TextStyle(
-                                    color: AppTheme.colorScheme.primary,
+                                  authProvider.errorMessage!,
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
-                  ),
+                    
+                    const Spacer(),
+                    
+                    // Versión
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: const Text(
+                        'Versión 13.0.0',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 }
-

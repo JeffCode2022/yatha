@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 
 class StatusBadge extends StatelessWidget {
   final String status;
-  final double fontSize;
 
   const StatusBadge({
     Key? key,
     required this.status,
-    this.fontSize = 12,
   }) : super(key: key);
 
   @override
@@ -17,28 +15,20 @@ class StatusBadge extends StatelessWidget {
 
     switch (status.toLowerCase()) {
       case 'pagado':
-      case 'paid':
         backgroundColor = Colors.green.withOpacity(0.1);
         textColor = Colors.green;
         break;
       case 'pendiente':
-      case 'on_time':
         backgroundColor = Colors.orange.withOpacity(0.1);
         textColor = Colors.orange;
         break;
       case 'atrasado':
-      case 'late':
         backgroundColor = Colors.red.withOpacity(0.1);
         textColor = Colors.red;
         break;
-      case 'borrador':
-      case 'draft':
+      default:
         backgroundColor = Colors.grey.withOpacity(0.1);
         textColor = Colors.grey;
-        break;
-      default:
-        backgroundColor = Colors.blue.withOpacity(0.1);
-        textColor = Colors.blue;
     }
 
     return Container(
@@ -53,9 +43,9 @@ class StatusBadge extends StatelessWidget {
       child: Text(
         status,
         style: TextStyle(
-          color: textColor,
-          fontSize: fontSize,
+          fontSize: 12,
           fontWeight: FontWeight.bold,
+          color: textColor,
         ),
       ),
     );
