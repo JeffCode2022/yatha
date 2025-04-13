@@ -30,7 +30,9 @@ class BaseScreen extends StatelessWidget {
             backgroundColor: AppTheme.colorScheme.primary,
             actions: actions,
           ),
-          body: body,
+          body: SafeArea(
+            child: body,
+          ),
           bottomNavigationBar: bottomNavigationBar,
         );
       },
@@ -76,51 +78,83 @@ class BaseScreen extends StatelessWidget {
               ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.dashboard),
-            title: const Text('Dashboard'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/gestor/home');
-            },
+          _buildDrawerItem(
+            context: context,
+            icon: Icons.dashboard,
+            title: 'Dashboard',
+            route: '/gestor/home',
+            isSelected: title == 'Dashboard',
           ),
-          ListTile(
-            leading: const Icon(Icons.payment),
-            title: const Text('Pagos'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/gestor/payments');
-            },
+          _buildDrawerItem(
+            context: context,
+            icon: Icons.payment,
+            title: 'Pagos',
+            route: '/gestor/payments',
+            isSelected: title == 'Pagos',
           ),
-          ListTile(
-            leading: const Icon(Icons.people),
-            title: const Text('Clientes'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/gestor/clients');
-            },
+          _buildDrawerItem(
+            context: context,
+            icon: Icons.people,
+            title: 'Clientes',
+            route: '/gestor/clients',
+            isSelected: title == 'Clientes',
           ),
-          ListTile(
-            leading: const Icon(Icons.analytics),
-            title: const Text('KPIs'),
-            selected: title == 'KPIs',
-            selectedTileColor: AppTheme.colorScheme.primary.withOpacity(0.1),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/gestor/kpis');
-            },
+          _buildDrawerItem(
+            context: context,
+            icon: Icons.analytics,
+            title: 'KPIs',
+            route: '/gestor/kpis',
+            isSelected: title == 'KPIs',
           ),
           const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Cerrar Sesión'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/login');
+          _buildDrawerItem(
+            context: context,
+            icon: Icons.logout,
+            title: 'Cerrar Sesión',
+            route: '/login',
+            isSelected: false,
+            onTap: () async {
+              await authProvider.logout();
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (route) => false,
+                );
+              }
             },
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String route,
+    required bool isSelected,
+    VoidCallback? onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      selected: isSelected,
+      selectedTileColor: AppTheme.colorScheme.primary.withOpacity(0.1),
+      onTap: onTap ??
+          () {
+            Navigator.pop(context);
+            if (route == '/login') {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                route,
+                (route) => false,
+              );
+            } else {
+              Navigator.pushReplacementNamed(context, route);
+            }
+          },
     );
   }
 }

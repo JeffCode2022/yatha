@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'theme/app_theme.dart';
-import 'providers/auth_provider.dart';
-import 'providers/loan_provider.dart';
-import 'providers/payment_provider.dart';
-import 'providers/cliente_provider.dart';
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/loan_detail_screen.dart';
+import 'package:yatha_app/providers/auth_provider.dart';
+import 'package:yatha_app/providers/loan_provider.dart';
+import 'package:yatha_app/providers/payment_provider.dart';
+import 'package:yatha_app/providers/cliente_provider.dart';
+import 'package:yatha_app/screens/login_screen.dart';
+import 'package:yatha_app/screens/home_screen.dart';
+import 'package:yatha_app/screens/gestor/loan_detail_screen.dart';
+import 'package:yatha_app/screens/gestor/map_screen.dart';
+import 'package:yatha_app/theme/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
     MultiProvider(
       providers: [
@@ -64,6 +67,15 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'ES'),
+      ],
+      locale: const Locale('es'),
       home: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           if (authProvider.isAuthenticated) {
@@ -77,6 +89,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
         '/loan-detail': (context) => const LoanDetailScreen(),
+        '/map': (context) => const MapScreen(),
       },
     );
   }

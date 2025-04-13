@@ -4,9 +4,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
-        android:label="yatha_app"
+        android:label="Yatha"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBV7ECMpja47Pu0shoRXUMUAPYY2CSX1G0"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

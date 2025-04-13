@@ -8,13 +8,11 @@ class AuthProvider with ChangeNotifier {
   bool _isAuthenticated = false;
   bool _isLoading = false;
   String? _errorMessage;
-  String? _token;
 
   User? get user => _user;
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  String? get token => _token;
   bool get isSupervisor => _user?.role == 'supervisor';
   bool get isGestor => _user?.role == 'gestor';
 
@@ -24,22 +22,37 @@ class AuthProvider with ChangeNotifier {
 
   // Cargar datos de autenticación guardados
   Future<void> _loadSavedAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedUid = prefs.getInt('uid');
-    final savedToken = prefs.getString('token');
-    final savedRole = prefs.getString('role');
-    final savedName = prefs.getString('name');
-    final savedEmail = prefs.getString('email');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUid = prefs.getInt('uid');
+      final savedRole = prefs.getString('role');
+      final savedName = prefs.getString('username');
+      final savedEmail = prefs.getString('username');
 
-    if (savedUid != null && savedToken != null && savedRole != null) {
-      _user = User(
-        uid: savedUid,
-        name: savedName ?? '',
-        email: savedEmail ?? '',
-        role: savedRole,
-      );
-      _token = savedToken;
-      _isAuthenticated = true;
+      print('AuthProvider - Cargando datos guardados:');
+      print('AuthProvider - UID: $savedUid');
+      print('AuthProvider - Rol: $savedRole');
+      print('AuthProvider - Nombre: $savedName');
+      print('AuthProvider - Email: $savedEmail');
+
+      if (savedUid != null && savedRole != null) {
+        _user = User(
+          uid: savedUid,
+          name: savedName ?? '',
+          email: savedEmail ?? '',
+          role: savedRole,
+        );
+        _isAuthenticated = true;
+        print('AuthProvider - Usuario autenticado: ${_user?.toJson()}');
+        notifyListeners();
+      } else {
+        print('AuthProvider - No hay datos de autenticación guardados');
+        _isAuthenticated = false;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('AuthProvider - Error al cargar datos guardados: $e');
+      _isAuthenticated = false;
       notifyListeners();
     }
   }
@@ -51,8 +64,9 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      print('AuthProvider - Iniciando login para usuario: $username');
       final response = await ApiService().login(username, password);
-      print('Respuesta completa del login: $response'); // Debug
+      print('AuthProvider - Respuesta del login: $response');
 
       if (response.containsKey('error')) {
         _isAuthenticated = false;
@@ -82,7 +96,7 @@ class AuthProvider with ChangeNotifier {
           throw Exception('ID de usuario inválido');
         }
       } catch (e) {
-        print('Error al procesar uid: $e'); // Debug
+        print('AuthProvider - Error al procesar uid: $e');
         _errorMessage = 'Error al procesar el ID de usuario: $e';
         _isLoading = false;
         notifyListeners();
@@ -95,28 +109,28 @@ class AuthProvider with ChangeNotifier {
         name: response['name'] ?? username.split('@')[0],
         email: response['email'] ?? username,
         role: response['role'] ?? 'gestor',
-        token: response['token'],
       );
 
-      _token = response['token'];
       _isAuthenticated = true;
       _errorMessage = null;
 
       // Guardar datos en SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('uid', userId);
-      await prefs.setString('token', _token ?? '');
       await prefs.setString('role', _user!.role);
-      await prefs.setString('name', _user!.name);
-      await prefs.setString('email', _user!.email);
+      await prefs.setString('username', username);
+      await prefs.setString(
+          'password', '1234'); // Contraseña fija como en Postman
 
-      print('Login exitoso. Usuario: ${_user?.toJson()}'); // Debug
+      print('AuthProvider - Login exitoso');
+      print('AuthProvider - Usuario: ${_user?.toJson()}');
+      print('AuthProvider - Datos guardados en SharedPreferences');
 
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error en el proceso de login: $e'); // Debug
+      print('AuthProvider - Error en el proceso de login: $e');
       _isAuthenticated = false;
       _errorMessage = 'Error de conexión: $e';
       _isLoading = false;
@@ -127,18 +141,23 @@ class AuthProvider with ChangeNotifier {
 
   // Función para cerrar sesión
   Future<void> logout() async {
-    _user = null;
-    _token = null;
-    _isAuthenticated = false;
+    try {
+      print('AuthProvider - Iniciando logout');
 
-    // Eliminar datos guardados
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('uid');
-    await prefs.remove('token');
-    await prefs.remove('role');
-    await prefs.remove('name');
-    await prefs.remove('email');
+      // Eliminar datos guardados
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('uid');
+      await prefs.remove('role');
+      await prefs.remove('username');
+      await prefs.remove('password');
 
-    notifyListeners();
+      print('AuthProvider - Datos eliminados de SharedPreferences');
+
+      _user = null;
+      _isAuthenticated = false;
+      notifyListeners();
+    } catch (e) {
+      print('AuthProvider - Error durante el logout: $e');
+    }
   }
 }

@@ -15,42 +15,31 @@ class KpiScreen extends StatefulWidget {
 }
 
 class _KpiScreenState extends State<KpiScreen> {
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadKpis();
+    _selectedDate = DateTime.now();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    if (!mounted) return;
+    await _loadKpis();
+  }
+
+  Future<void> _loadKpis() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
     });
-  }
 
-  void _loadKpis() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final paymentProvider = Provider.of<PaymentProvider>(
-      context,
-      listen: false,
-    );
-
-    if (authProvider.user?.uid != null) {
-      await paymentProvider.fetchDailyKPIs(authProvider.user!.uid);
-    }
-  }
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-
-      // Cargar KPIs para la fecha seleccionada
+    try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final paymentProvider = Provider.of<PaymentProvider>(
         context,
@@ -58,223 +47,305 @@ class _KpiScreenState extends State<KpiScreen> {
       );
 
       if (authProvider.user?.uid != null) {
-        await paymentProvider.fetchDailyKPIs(authProvider.user!.uid);
+        final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
+        print('KpiScreen - Cargando KPIs para fecha: $formattedDate');
+        print('KpiScreen - Usuario ID: ${authProvider.user?.uid}');
+
+        await paymentProvider.fetchDailyKPIs(
+          authProvider.user!.uid,
+          formattedDate,
+        );
+
+        // Verificar si los datos se cargaron correctamente
+        if (paymentProvider.kpiData.isEmpty) {
+          setState(() {
+            _errorMessage =
+                'No se encontraron datos para la fecha seleccionada';
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'No hay usuario autenticado';
+        });
+      }
+    } catch (e) {
+      print('KpiScreen - Error al cargar KPIs: $e');
+      setState(() {
+        _errorMessage = 'Error al cargar datos: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    try {
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2030),
+        locale: const Locale('es', ''),
+      );
+
+      if (picked != null && picked != _selectedDate && mounted) {
+        setState(() {
+          _selectedDate = picked;
+          _errorMessage = null;
+        });
+        await _loadKpis();
+      }
+    } catch (e) {
+      print('KpiScreen - Error al seleccionar fecha: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al seleccionar fecha: $e')),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<PaymentProvider, AuthProvider>(
-      builder: (context, paymentProvider, authProvider, _) {
-        return RefreshIndicator(
-          onRefresh: () async => _loadKpis(),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+    return Scaffold(
+      body: Consumer2<PaymentProvider, AuthProvider>(
+        builder: (context, paymentProvider, authProvider, _) {
+          return RefreshIndicator(
+            onRefresh: _loadKpis,
+            child: Stack(
               children: [
-                // Selector de fecha
-                GestureDetector(
-                  onTap: () => _selectDate(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 5,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    child: Row(
+                if (_errorMessage != null ||
+                    paymentProvider.errorMessage != null)
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.calendar_today),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Fecha seleccionada',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              DateFormat('dd/MM/yyyy').format(_selectedDate),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+                        const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.red,
                         ),
-                        const Spacer(),
-                        const Icon(Icons.arrow_drop_down),
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage ?? paymentProvider.errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadKpis,
+                          child: const Text('Reintentar'),
+                        ),
                       ],
                     ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Tarjeta de progreso
-                GlassContainer(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Progreso del día',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                  )
+                else
+                  SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Selector de fecha
+                        GestureDetector(
+                          onTap: () => _selectDate(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 5,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Fecha seleccionada',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      DateFormat(
+                                        'dd/MM/yyyy',
+                                      ).format(_selectedDate),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                const Icon(Icons.arrow_drop_down),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
 
-                      ProgressIndicatorWidget(
-                        value: paymentProvider.getProgressPercentage(),
-                        height: 10,
-                      ),
+                        const SizedBox(height: 24),
 
-                      const SizedBox(height: 16),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
+                        // Tarjeta de progreso
+                        GlassContainer(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Recaudado',
+                                'Progreso del día',
                                 style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                '\$${paymentProvider.getTotalPaidAmount().toStringAsFixed(2)}',
-                                style: TextStyle(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                  color: AppTheme.colorScheme.primary,
                                 ),
                               ),
+                              const SizedBox(height: 16),
+                              ProgressIndicatorWidget(
+                                value: paymentProvider.getProgressPercentage(),
+                                height: 10,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildProgressStats(paymentProvider),
                             ],
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              const Text(
-                                'Meta',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              Text(
-                                '\$${paymentProvider.getTotalExpectedAmount().toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      Text(
-                        'Avance: ${(paymentProvider.getProgressPercentage() * 100).toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.colorScheme.primary,
                         ),
-                      ),
-                    ],
+
+                        const SizedBox(height: 24),
+
+                        // Tarjetas de estadísticas
+                        _buildStatCards(paymentProvider),
+
+                        const SizedBox(height: 24),
+
+                        // Lista de pagos
+                        const Text(
+                          'Desglose de Pagos',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildPaymentsList(paymentProvider),
+                      ],
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Tarjetas de estadísticas
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'Pagos a Tiempo',
-                        value:
-                            paymentProvider.getOnTimePaymentsCount().toString(),
-                        icon: Icons.check_circle,
-                        color: Colors.green,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'Pagos Tardíos',
-                        value:
-                            paymentProvider.getLatePaymentsCount().toString(),
-                        icon: Icons.warning,
-                        color: Colors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'Total de Pagos',
-                        value:
-                            paymentProvider.getTotalPaymentsCount().toString(),
-                        icon: Icons.assignment,
-                        color: AppTheme.colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'Eficiencia',
-                        value:
-                            '${paymentProvider.getTotalPaymentsCount() > 0 ? (paymentProvider.getOnTimePaymentsCount() / paymentProvider.getTotalPaymentsCount() * 100).toStringAsFixed(0) : '0'}%',
-                        icon: Icons.trending_up,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Lista de resumen de pagos
-                const Text(
-                  'Desglose de Pagos',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 5),
-                _buildPaymentsList(paymentProvider),
-                const SizedBox(height: 12), // Espacio adicional al final
+                if (_isLoading)
+                  Container(
+                    color: Colors.black.withOpacity(0.1),
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildProgressStats(PaymentProvider provider) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Recaudado',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            Text(
+              '\$${provider.getTotalPaidAmount().toStringAsFixed(2)}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                color: AppTheme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Text(
+              'Meta',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            Text(
+              '\$${provider.getTotalExpectedAmount().toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCards(PaymentProvider provider) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                title: 'Pagos a Tiempo',
+                value: provider.getOnTimePaymentsCount().toString(),
+                icon: Icons.check_circle,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                title: 'Pagos Tardíos',
+                value: provider.getLatePaymentsCount().toString(),
+                icon: Icons.warning,
+                color: Colors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                title: 'Total de Pagos',
+                value: provider.getTotalPaymentsCount().toString(),
+                icon: Icons.assignment,
+                color: AppTheme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildStatCard(
+                title: 'Eficiencia',
+                value:
+                    '${provider.getTotalPaymentsCount() > 0 ? (provider.getOnTimePaymentsCount() / provider.getTotalPaymentsCount() * 100).toStringAsFixed(0) : '0'}%',
+                icon: Icons.trending_up,
+                color: Colors.blue,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -288,20 +359,25 @@ class _KpiScreenState extends State<KpiScreen> {
       height: 120,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 24,
+              fontSize: 20,
               color: color,
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             title,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -310,10 +386,9 @@ class _KpiScreenState extends State<KpiScreen> {
   }
 
   Widget _buildPaymentsList(PaymentProvider provider) {
-    final onTimePayments = provider.kpiData['onTime'];
-    final latePayments = provider.kpiData['late'];
+    final payments = provider.kpiData['payments'] as List<dynamic>? ?? [];
 
-    if ((onTimePayments?.isEmpty ?? true) && (latePayments?.isEmpty ?? true)) {
+    if (payments.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -334,17 +409,20 @@ class _KpiScreenState extends State<KpiScreen> {
       );
     }
 
+    final onTimePayments =
+        payments.where((p) => p['payment_status'] == 'on_time').toList();
+    final latePayments =
+        payments.where((p) => p['payment_status'] == 'late').toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (onTimePayments != null && onTimePayments.isNotEmpty) ...[
+        if (onTimePayments.isNotEmpty) ...[
           _buildPaymentSection('Pagos a Tiempo', onTimePayments, Colors.green),
           const SizedBox(height: 16),
         ],
-
-        if (latePayments != null && latePayments.isNotEmpty) ...[
+        if (latePayments.isNotEmpty)
           _buildPaymentSection('Pagos Tardíos', latePayments, Colors.orange),
-        ],
       ],
     );
   }
@@ -391,9 +469,8 @@ class _KpiScreenState extends State<KpiScreen> {
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
             itemCount: payments.length,
-            separatorBuilder:
-                (context, index) =>
-                    Divider(height: 1, color: color.withOpacity(0.2)),
+            separatorBuilder: (context, index) =>
+                Divider(height: 1, color: color.withOpacity(0.2)),
             itemBuilder: (context, index) {
               final payment = payments[index];
               return ListTile(

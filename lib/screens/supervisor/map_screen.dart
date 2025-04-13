@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:intl/intl.dart';
 import '../../providers/cliente_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/base_screen.dart';
@@ -17,12 +18,17 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen> {
   final MapController _mapController = MapController();
   int? _selectedVendedorId;
   String _selectedFilter = 'todos';
+  final _currencyFormat = NumberFormat.currency(
+    locale: 'es_PE',
+    symbol: 'S/.',
+    decimalDigits: 2,
+  );
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ClienteProvider>().cargarClientes();
+      context.read<ClienteProvider>().loadClientes();
     });
   }
 
@@ -36,9 +42,15 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (clienteProvider.errorMessage != null) {
+          if (clienteProvider.error != null) {
             return Center(
-              child: Text('Error: ${clienteProvider.errorMessage}'),
+              child: Text(
+                'Error: ${clienteProvider.error}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.red,
+                      fontSize: 14,
+                    ),
+              ),
             );
           }
 
@@ -108,13 +120,14 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen> {
                 child: FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
-                    initialCenter: const LatLng(19.4326, -99.1332),
+                    initialCenter: const LatLng(-12.0464, -77.0428),
                     initialZoom: 13.0,
                   ),
                   children: [
                     TileLayer(
                       urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                      subdomains: const ['a', 'b', 'c'],
                       userAgentPackageName: 'com.yatha.app',
                     ),
                     MarkerLayer(markers: _buildMarkers(clienteProvider)),
@@ -129,7 +142,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen> {
   }
 
   List<Marker> _buildMarkers(ClienteProvider provider) {
-    List<Map<String, dynamic>> clientesFiltrados = provider.clientes;
+    List<Map<String, dynamic>> clientesFiltrados = provider.loans;
 
     // Aplicar filtro de vendedor
     if (_selectedVendedorId != null) {
@@ -138,32 +151,64 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen> {
 
     // Aplicar filtro de estado
     if (_selectedFilter != 'todos') {
-      clientesFiltrados =
-          clientesFiltrados.where((cliente) {
-            return _selectedFilter == 'activos'
-                ? cliente['estado'] == 'activo'
-                : cliente['estado'] == 'inactivo';
-          }).toList();
+      clientesFiltrados = clientesFiltrados.where((cliente) {
+        return _selectedFilter == 'activos'
+            ? cliente['estado'] == 'activo'
+            : cliente['estado'] == 'inactivo';
+      }).toList();
     }
 
     return clientesFiltrados.map((cliente) {
       final lat = cliente['partner_latitude'] as double?;
       final lng = cliente['partner_longitude'] as double?;
+      final monto = cliente['payment_amount'] as double?;
 
-      if (lat == null || lng == null)
+      if (lat == null || lng == null) {
         return Marker(
           point: const LatLng(0, 0),
           child: const Icon(Icons.location_off, color: Colors.grey),
         );
+      }
 
       return Marker(
         point: LatLng(lat, lng),
-        width: 40,
-        height: 40,
-        child: Icon(
-          Icons.location_on,
-          color: _selectedFilter == 'activos' ? Colors.green : Colors.red,
-          size: 40,
+        width: 80,
+        height: 80,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                monto != null ? _currencyFormat.format(monto) : 'S/.0.00',
+                style: TextStyle(
+                  fontSize: 12.0,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 0.3,
+                  height: 1.4,
+                  color: const Color(0xFF4CAF50),
+                  fontFamily: 'Roboto',
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Icon(
+              Icons.location_on,
+              color: _selectedFilter == 'activos' ? Colors.green : Colors.red,
+              size: 40,
+            ),
+          ],
         ),
       );
     }).toList();

@@ -1,30 +1,66 @@
 import 'package:flutter/material.dart';
-import 'package:yatha_app/widgets/mapa_gestor_widget.dart';
+import '../../widgets/mapa_gestor_widget.dart';
 
-class MapScreen extends StatelessWidget {
-  const MapScreen({Key? key}) : super(key: key);
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
+
+  @override
+  State<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends State<MapScreen> {
+  DateTime _selectedDate = DateTime.now();
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      locale: const Locale('es', 'ES'),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Simulación de pantalla de mapa
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Scaffold(
+      body: Column(
         children: [
-          Icon(Icons.map, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          const Text(
-            'Mapa de Cobros',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Fecha de inicio:'),
+                TextButton.icon(
+                  onPressed: () => _selectDate(context),
+                  icon: const Icon(Icons.calendar_today),
+                  label: const Text('Cambiar fecha'),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Esta funcionalidad requiere implementación\ncon servicios de mapas y geolocalización.',
-            style: TextStyle(color: Colors.grey[600]),
-            textAlign: TextAlign.center,
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              margin: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: MapaGestorWidget(
+                  key: ValueKey(_selectedDate.toString()),
+                  selectedDate: _selectedDate,
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
-          MapaGestorWidget(),
         ],
       ),
     );

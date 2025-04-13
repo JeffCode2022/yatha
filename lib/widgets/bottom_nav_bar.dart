@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:flutter/cupertino.dart';
+import 'dart:ui';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -15,79 +16,121 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 0,
-            offset: const Offset(0, -5),
-          ),
-        ],
+    final items = isGestor
+        ? [
+            _buildNavItem(
+              icon: Icons.account_balance_wallet_outlined,
+              activeIcon: Icons.account_balance_wallet_rounded,
+              label: 'Préstamos',
+              index: 0,
+            ),
+            _buildNavItem(
+              icon: Icons.map_outlined,
+              activeIcon: Icons.map_rounded,
+              label: 'Mapa',
+              index: 1,
+            ),
+            _buildNavItem(
+              icon: Icons.insert_chart_outlined_rounded,
+              activeIcon: Icons.insert_chart_rounded,
+              label: 'KPI',
+              index: 2,
+            ),
+            _buildNavItem(
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: 'Perfil',
+              index: 3,
+            ),
+          ]
+        : [
+            _buildNavItem(
+              icon: Icons.dashboard_outlined,
+              activeIcon: Icons.dashboard_rounded,
+              label: 'Dashboard',
+              index: 0,
+            ),
+            _buildNavItem(
+              icon: Icons.groups_outlined,
+              activeIcon: Icons.groups_rounded,
+              label: 'Gestores',
+              index: 1,
+            ),
+            _buildNavItem(
+              icon: Icons.map_outlined,
+              activeIcon: Icons.map_rounded,
+              label: 'Mapa',
+              index: 2,
+            ),
+            _buildNavItem(
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: 'Perfil',
+              index: 3,
+            ),
+          ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16, left: 24, right: 24, top: 8),
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2E3147),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: items,
+        ),
       ),
-      child: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: onTap,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        selectedItemColor: AppTheme.primaryColor,
-        unselectedItemColor: Colors.grey[600],
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required int index,
+  }) {
+    final isSelected = currentIndex == index;
+    return GestureDetector(
+      onTap: () => onTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 56,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: isSelected
+                  ? BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    )
+                  : null,
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                size: 22,
+                color:
+                    isSelected ? Colors.white : Colors.white.withOpacity(0.5),
+              ),
+            ),
+          ],
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.normal,
-          fontSize: 12,
-        ),
-        elevation: 0,
-        items: isGestor
-            ? const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.account_balance_wallet_outlined),
-                  activeIcon: Icon(Icons.account_balance_wallet),
-                  label: 'Préstamos',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.map_outlined),
-                  activeIcon: Icon(Icons.map),
-                  label: 'Mapa',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.dashboard_outlined),
-                  activeIcon: Icon(Icons.dashboard),
-                  label: 'Indicadores',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline),
-                  activeIcon: Icon(Icons.person),
-                  label: 'Perfil',
-                ),
-              ]
-            : const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.dashboard_outlined),
-                  activeIcon: Icon(Icons.dashboard),
-                  label: 'Dashboard',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.people_outline),
-                  activeIcon: Icon(Icons.people),
-                  label: 'Gestores',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.map_outlined),
-                  activeIcon: Icon(Icons.map),
-                  label: 'Mapa',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline),
-                  activeIcon: Icon(Icons.person),
-                  label: 'Perfil',
-                ),
-              ],
       ),
     );
   }

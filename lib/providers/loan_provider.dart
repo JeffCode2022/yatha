@@ -30,7 +30,7 @@ class LoanProvider with ChangeNotifier {
 
     try {
       final response = await ApiService().getAssignedLoans(uid, "monthly");
-      
+
       if (response.containsKey('error')) {
         _errorMessage = response['error'];
         _monthlyLoans = [];
@@ -55,7 +55,7 @@ class LoanProvider with ChangeNotifier {
 
     try {
       final response = await ApiService().getAssignedLoans(uid, "daily");
-      
+
       if (response.containsKey('error')) {
         _errorMessage = response['error'];
         _dailyLoans = [];
@@ -80,8 +80,9 @@ class LoanProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await ApiService().searchLoansByClientName(uid, clientName);
-      
+      final response =
+          await ApiService().searchLoansByClientName(uid, clientName);
+
       if (response.containsKey('error')) {
         _errorMessage = response['error'];
         _searchResults = [];
@@ -120,25 +121,24 @@ class LoanProvider with ChangeNotifier {
 
     try {
       final response = await ApiService().getLoanPayments(uid, loanId);
-      
+
       if (response.containsKey('error')) {
         _errorMessage = response['error'];
         _loanPayments = [];
       } else {
         _loanPayments = response['result'] ?? [];
         // Ordenar los pagos por fecha
-        _loanPayments.sort((a, b) => 
-          a['payment_date'] != null && b['payment_date'] != null
-              ? a['payment_date'].compareTo(b['payment_date'])
-              : 0
-        );
+        _loanPayments.sort((a, b) =>
+            a['payment_date'] != null && b['payment_date'] != null
+                ? a['payment_date'].compareTo(b['payment_date'])
+                : 0);
         _errorMessage = null;
       }
     } catch (e) {
       _errorMessage = 'Error al cargar pagos: $e';
       _loanPayments = [];
     }
-    
+
     _isLoading = false;
     notifyListeners();
   }

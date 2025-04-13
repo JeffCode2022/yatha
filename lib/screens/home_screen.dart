@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../screens/gestor/kpi_screen.dart';
 import '../screens/gestor/loans_screen.dart';
-import '../screens/gestor/map_screen.dart';
+import 'gestor/map_screen.dart';
 import '../screens/gestor/profile_screen.dart';
 import '../widgets/base_screen.dart';
 

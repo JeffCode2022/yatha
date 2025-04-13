@@ -5,40 +5,65 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static const String baseUrl = 'https://cda7-38-25-28-10.ngrok-free.app';
 
-  // Función para obtener el token guardado
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    print('Token recuperado: $token'); // Debug
-    return token;
+  // Función para obtener las credenciales guardadas
+  Future<Map<String, dynamic>> _getCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getInt('uid');
+      final username = prefs.getString('username');
+      final password = prefs.getString('password');
+
+      print('ApiService - Obteniendo credenciales:');
+      print('ApiService - UID: $uid');
+      print('ApiService - Username: $username');
+      print('ApiService - Password: ${password != null ? '****' : 'null'}');
+
+      if (uid == null || username == null || password == null) {
+        print('ApiService - No hay credenciales guardadas');
+        return {};
+      }
+
+      return {
+        'uid': uid,
+        'username': username,
+        'password': password,
+      };
+    } catch (e) {
+      print('ApiService - Error al obtener credenciales: $e');
+      return {};
+    }
   }
 
   // Función para autenticar al usuario
   Future<Map<String, dynamic>> login(String username, String password) async {
     final url = Uri.parse('$baseUrl/api/roles/auth');
 
-    final headers = {'Content-Type': 'application/json'};
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
 
     // Estructura exacta como en Postman
     final body = jsonEncode({
       "jsonrpc": "2.0",
-      "params": {"db": "prestamovf", "login": username, "password": password},
+      "params": {"db": "prestamovf", "login": username, "password": password}
     });
 
     try {
-      print('URL: $url'); // Debug
-      print('Headers: $headers'); // Debug
-      print('Body: $body'); // Debug
+      print('ApiService - Login URL: $url');
+      print('ApiService - Login Headers: $headers');
+      print('ApiService - Login Body: $body');
 
       final response = await http.post(url, headers: headers, body: body);
-      print('Status code: ${response.statusCode}'); // Debug
-      print('Response body: ${response.body}'); // Debug
+      print('ApiService - Login Status code: ${response.statusCode}');
+      print('ApiService - Login Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
         // Si hay error en la respuesta
         if (data['error'] != null) {
+          print('ApiService - Login Error en respuesta: ${data['error']}');
           return {
             'error': data['error']['message'] ?? 'Error de autenticación',
           };
@@ -47,24 +72,37 @@ class ApiService {
         // Si hay resultado exitoso
         if (data['result'] != null) {
           final result = data['result'];
+          print('ApiService - Login Result: $result');
+
+          // Guardar datos de sesión
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('uid', result['uid']);
+          await prefs.setString('role', result['role']);
+          await prefs.setString('username', username);
+          await prefs.setString(
+              'password', '1234'); // Contraseña fija como en Postman
+
+          print('ApiService - Datos guardados en SharedPreferences');
+
           return {
             'success': true,
             'uid': result['uid'],
             'role': result['role'],
-            'token': result['token'],
             'name': username.split('@')[0],
             'email': username,
           };
         }
 
+        print('ApiService - Login Error: Respuesta sin result');
         return {'error': 'Respuesta inválida del servidor'};
       } else {
+        print('ApiService - Login Error de conexión: ${response.statusCode}');
         return {
           'error': 'Error en la conexión, código: ${response.statusCode}',
         };
       }
     } catch (e) {
-      print('Error en login: $e'); // Debug
+      print('ApiService - Login Error: $e');
       return {'error': 'Error de conexión: $e'};
     }
   }
@@ -74,19 +112,84 @@ class ApiService {
     int uid,
     String paymentPeriod,
   ) async {
-    final token = await _getToken();
-    if (token == null) {
-      return {'error': 'No hay token de autenticación'};
-    }
-
     final url = Uri.parse('$baseUrl/jsonrpc');
+    final credentials = await _getCredentials();
+
+    if (credentials.isEmpty) {
+      print(
+          'ApiService - Error: No hay credenciales disponibles para getAssignedLoans');
+      return {'error': 'No hay credenciales disponibles'};
+    }
 
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
     };
 
-    // Estructura exacta como en Postman
+    // Estructura exacta como en Postman para préstamos mensuales/diarios
+    final body = jsonEncode({
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": {
+        "service": "object",
+        "method": "execute",
+        "args": [
+          "prestamovf",
+          credentials['uid'],
+          credentials['password'],
+          "loan.loan",
+          "search_read",
+          [
+            ["user_id", "=", uid],
+            ["payment_period", "=", paymentPeriod]
+          ],
+          [
+            "name",
+            "partner_id",
+            "loan_amount",
+            "payment_parts",
+            "payment_period",
+            "loan_status"
+          ]
+        ]
+      }
+    });
+
+    try {
+      print('ApiService - getAssignedLoans URL: $url');
+      print('ApiService - getAssignedLoans Headers: $headers');
+      print('ApiService - getAssignedLoans Body: $body');
+
+      final response = await http.post(url, headers: headers, body: body);
+      print(
+          'ApiService - getAssignedLoans Status code: ${response.statusCode}');
+      print('ApiService - getAssignedLoans Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['error'] != null) {
+          print('ApiService - getAssignedLoans Error: ${data['error']}');
+          return {'error': data['error']['message']};
+        }
+        return {'success': true, 'loans': data['result']};
+      }
+      return {'error': 'Error en la conexión: ${response.statusCode}'};
+    } catch (e) {
+      print('ApiService - getAssignedLoans Error: $e');
+      return {'error': 'Error de conexión: $e'};
+    }
+  }
+
+  // Función para obtener los préstamos asignados a un gestor
+  Future<Map<String, dynamic>> getAssignedLoansOld(
+    int uid,
+    String paymentPeriod,
+  ) async {
+    final url = Uri.parse('$baseUrl/jsonrpc');
+
+    final headers = {'Content-Type': 'application/json'};
+
+    // Estructura exacta como en Postman para préstamos mensuales/diarios
     final body = jsonEncode({
       "jsonrpc": "2.0",
       "method": "call",
@@ -96,13 +199,13 @@ class ApiService {
         "args": [
           "prestamovf",
           uid,
-          "1234", // Password fijo como en Postman
+          "1234",
           "loan.management",
           "search_read",
           [
             ["payment_period", "=", paymentPeriod],
             ["loan_status", "=", "pending"],
-            ["partner_salesperson.id", "=", uid],
+            ["partner_salesperson.id", "=", uid]
           ],
           [
             "id",
@@ -134,10 +237,10 @@ class ApiService {
             "payment_amount",
             "amount_due_today",
             "total_cash_payments",
-            "total_transfer_payments",
-          ],
-        ],
-      },
+            "total_transfer_payments"
+          ]
+        ]
+      }
     });
 
     try {
@@ -153,13 +256,22 @@ class ApiService {
         final data = jsonDecode(response.body);
 
         if (data['error'] != null) {
+          print('Error en la respuesta: ${data['error']}');
           return {
             'error': data['error']['message'] ?? 'Error al obtener préstamos',
           };
         }
 
+        // Asegurarnos de que result sea una lista
+        if (data['result'] == null) {
+          print('No hay préstamos en la respuesta');
+          return {'result': []};
+        }
+
+        print('Préstamos obtenidos: ${data['result'].length}');
         return data;
       } else {
+        print('Error de conexión: ${response.statusCode}');
         return {
           'error': 'Error en la conexión, código: ${response.statusCode}',
         };
@@ -175,17 +287,9 @@ class ApiService {
     int uid,
     String clientName,
   ) async {
-    final token = await _getToken();
-    if (token == null) {
-      return {'error': 'No hay token de autenticación'};
-    }
-
     final url = Uri.parse('$baseUrl/jsonrpc');
 
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    final headers = {'Content-Type': 'application/json'};
 
     final body = jsonEncode({
       "jsonrpc": "2.0",
@@ -196,12 +300,12 @@ class ApiService {
         "args": [
           "prestamovf",
           uid,
-          "admin",
+          "1234", // Password fijo como en Postman
           "loan.management",
           "search_read",
           [
             ["partner_salesperson.id", "=", uid],
-            ["partner_id.name", "ilike", clientName],
+            ["partner_id.name", "ilike", clientName]
           ],
           [
             "id",
@@ -213,42 +317,46 @@ class ApiService {
             "amount_due_today",
             "partner_latitude",
             "partner_longitude",
-            "loan_status",
-          ],
-        ],
-      },
+            "loan_status"
+          ]
+        ]
+      }
     });
 
     try {
+      print('URL: $url'); // Debug
+      print('Headers: $headers'); // Debug
+      print('Body: $body'); // Debug
+
       final response = await http.post(url, headers: headers, body: body);
+      print('Status code: ${response.statusCode}'); // Debug
+      print('Response body: ${response.body}'); // Debug
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body);
+        if (data['error'] != null) {
+          return {
+            'error': data['error']['message'] ?? 'Error al buscar préstamos',
+          };
+        }
+        return data;
       } else {
         return {
           'error': 'Error en la conexión, código: ${response.statusCode}',
         };
       }
     } catch (e) {
+      print('Error al buscar préstamos: $e'); // Debug
       return {'error': 'Error de conexión: $e'};
     }
   }
 
-  // Función para obtener el detalle de las cuotas de un préstamo
+  // Función para obtener los pagos de un préstamo
   Future<Map<String, dynamic>> getLoanPayments(int uid, String loanId) async {
-    final token = await _getToken();
-    if (token == null) {
-      return {'error': 'No hay token de autenticación'};
-    }
-
     final url = Uri.parse('$baseUrl/jsonrpc');
 
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    final headers = {'Content-Type': 'application/json'};
 
-    // Estructura exacta como en Postman
     final body = jsonEncode({
       "jsonrpc": "2.0",
       "method": "call",
@@ -262,7 +370,7 @@ class ApiService {
           "loan.payment",
           "search_read",
           [
-            ["loan_id", "=", loanId],
+            ["loan_id", "=", loanId]
           ],
           [
             "id",
@@ -292,10 +400,10 @@ class ApiService {
             "loan_capital",
             "interest_paid",
             "capital_paid",
-            "monthly_total_due",
-          ],
-        ],
-      },
+            "monthly_total_due"
+          ]
+        ]
+      }
     });
 
     try {
@@ -333,39 +441,29 @@ class ApiService {
     Map<String, dynamic> paymentData,
   ) async {
     try {
-      final token = await _getToken();
-      if (token == null) {
-        return {'error': 'No hay token de autenticación'};
-      }
-
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
-
-      // Determinar el endpoint y estructura según el tipo de pago
+      // Determinar el endpoint según el tipo de pago
       final bool isMonthly = paymentData.containsKey('interest_paid');
-      final endpoint =
-          isMonthly
-              ? '$baseUrl/api/payment/monthly/update'
-              : '$baseUrl/api/payment/daily/update';
+      final endpoint = isMonthly
+          ? '$baseUrl/api/payment/monthly/update'
+          : '$baseUrl/api/payment/daily/update';
+
+      final headers = {'Content-Type': 'application/json'};
 
       // Estructura exacta como en Postman
       final body = jsonEncode({
         "jsonrpc": "2.0",
-        "params":
-            isMonthly
-                ? {
-                  "id": paymentId,
-                  "payment_met": paymentData['payment_met'],
-                  "interest_paid": paymentData['interest_paid'],
-                  "capital_paid": paymentData['capital_paid'],
-                }
-                : {
-                  "id": paymentId,
-                  "paid_amount": paymentData['paid_amount'],
-                  "payment_met": paymentData['payment_met'],
-                },
+        "params": isMonthly
+            ? {
+                "id": paymentId,
+                "payment_met": paymentData['payment_met'],
+                "interest_paid": paymentData['interest_paid'],
+                "capital_paid": paymentData['capital_paid']
+              }
+            : {
+                "id": paymentId,
+                "paid_amount": paymentData['paid_amount'],
+                "payment_met": paymentData['payment_met']
+              }
       });
 
       print('URL: $endpoint'); // Debug
@@ -400,20 +498,12 @@ class ApiService {
 
   // Función para obtener indicadores KPI del día
   Future<Map<String, dynamic>> getDailyKPIs(int uid, String date) async {
-    final token = await _getToken();
-    if (token == null) {
-      return {'error': 'No hay token de autenticación'};
-    }
-
     final url = Uri.parse('$baseUrl/jsonrpc');
 
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    final headers = {'Content-Type': 'application/json'};
 
-    // Primero obtenemos los pagos a tiempo
-    final onTimeBody = jsonEncode({
+    // Estructura exacta como en Postman
+    final body = jsonEncode({
       "jsonrpc": "2.0",
       "method": "call",
       "params": {
@@ -422,100 +512,206 @@ class ApiService {
         "args": [
           "prestamovf",
           uid,
-          "admin",
+          "1234", // Password fijo como en Postman
           "loan.payment",
           "search_read",
           [
+            ["loan_id", "!=", false],
+            ["loan_id.partner_salesperson", "=", uid],
             ["payment_date", "=", date],
-            ["payment_status", "=", "on_time"],
-            ["partner_salesperson.id", "=", uid],
+            ["payment_status", "=", "pending"]
           ],
-          ["id", "payment_amount", "paid_amount"],
-        ],
-      },
-    });
-
-    // Luego obtenemos los pagos atrasados
-    final lateBody = jsonEncode({
-      "jsonrpc": "2.0",
-      "method": "call",
-      "params": {
-        "service": "object",
-        "method": "execute",
-        "args": [
-          "prestamovf",
-          uid,
-          "admin",
-          "loan.payment",
-          "search_read",
           [
-            ["payment_date", "=", date],
-            ["payment_status", "=", "late"],
-            ["partner_salesperson.id", "=", uid],
-          ],
-          ["id", "payment_amount", "paid_amount"],
-        ],
-      },
-    });
-
-    // También obtenemos el total de pagos planificados para el día
-    final totalBody = jsonEncode({
-      "jsonrpc": "2.0",
-      "method": "call",
-      "params": {
-        "service": "object",
-        "method": "execute",
-        "args": [
-          "prestamovf",
-          uid,
-          "admin",
-          "loan.payment",
-          "search_read",
-          [
-            ["payment_date", "=", date],
-            ["partner_salesperson.id", "=", uid],
-          ],
-          ["id", "payment_amount"],
-        ],
-      },
+            "id",
+            "name",
+            "payment_date",
+            "actual_payment_date",
+            "payment_status",
+            "payment_amount",
+            "paid_amount",
+            "partner_id",
+            "loan_id",
+            "payment_met"
+          ]
+        ]
+      }
     });
 
     try {
-      // Ejecutamos todas las peticiones
-      final onTimeResponse = await http.post(
-        url,
-        headers: headers,
-        body: onTimeBody,
-      );
-      final lateResponse = await http.post(
-        url,
-        headers: headers,
-        body: lateBody,
-      );
-      final totalResponse = await http.post(
-        url,
-        headers: headers,
-        body: totalBody,
-      );
+      print('ApiService - URL: $url'); // Debug
+      print('ApiService - Headers: $headers'); // Debug
+      print('ApiService - Body: $body'); // Debug
 
-      if (onTimeResponse.statusCode == 200 &&
-          lateResponse.statusCode == 200 &&
-          totalResponse.statusCode == 200) {
-        final onTimeData = jsonDecode(onTimeResponse.body);
-        final lateData = jsonDecode(lateResponse.body);
-        final totalData = jsonDecode(totalResponse.body);
+      final response = await http.post(url, headers: headers, body: body);
+      print('ApiService - Status code: ${response.statusCode}'); // Debug
+      print('ApiService - Response body: ${response.body}'); // Debug
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data['error'] != null) {
+          print(
+              'ApiService - Error en la respuesta: ${data['error']}'); // Debug
+          return {'error': data['error']['message'] ?? 'Error al obtener KPIs'};
+        }
+
+        // Procesar los resultados para calcular KPIs
+        final List<dynamic> payments = data['result'] ?? [];
+        print(
+            'ApiService - Número de pagos encontrados: ${payments.length}'); // Debug
+
+        // Calcular totales
+        double totalAmount = 0;
+        double totalPaid = 0;
+        double totalPending = 0;
+        int onTimeCount = 0;
+        int lateCount = 0;
+        int pendingCount = 0;
+
+        for (var payment in payments) {
+          final double paymentAmount =
+              (payment['payment_amount'] ?? 0).toDouble();
+          final double paidAmount = (payment['paid_amount'] ?? 0).toDouble();
+          final String status = payment['payment_status'] ?? 'pending';
+
+          totalAmount += paymentAmount;
+          totalPaid += paidAmount;
+
+          if (status == 'on_time') {
+            onTimeCount++;
+          } else if (status == 'late') {
+            lateCount++;
+          } else {
+            pendingCount++;
+            totalPending += (paymentAmount - paidAmount);
+          }
+        }
 
         return {
-          'onTime': onTimeData['result'] ?? [],
-          'late': lateData['result'] ?? [],
-          'total': totalData['result'] ?? [],
+          'onTime': onTimeCount,
+          'late': lateCount,
+          'pending': pendingCount,
+          'totalAmount': totalAmount,
+          'totalPaid': totalPaid,
+          'totalPending': totalPending,
+          'payments': payments,
         };
       } else {
         return {
-          'error': 'Error en la conexión, código: ${onTimeResponse.statusCode}',
+          'error': 'Error en la conexión, código: ${response.statusCode}'
         };
       }
     } catch (e) {
+      print('ApiService - Error al obtener KPIs: $e'); // Debug
+      return {'error': 'Error de conexión: $e'};
+    }
+  }
+
+  // Función para obtener préstamos para el mapa
+  Future<Map<String, dynamic>> getMapLoans(int uid, String date) async {
+    final url = Uri.parse('$baseUrl/web/dataset/call_kw');
+
+    final headers = {'Content-Type': 'application/json'};
+
+    // Estructura exacta como en Postman para obtener préstamos del día
+    final body = jsonEncode({
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": {
+        "model": "loan.payment",
+        "method": "search_read",
+        "args": [
+          [
+            ["loan_id", "!=", false],
+            ["loan_id.partner_salesperson", "=", uid],
+            ["payment_date", "=", date],
+            ["payment_status", "=", "pending"]
+          ],
+          ["loan_id", "payment_date"]
+        ],
+        "kwargs": {}
+      }
+    });
+
+    try {
+      print('URL: $url'); // Debug
+      print('Headers: $headers'); // Debug
+      print('Body: $body'); // Debug
+
+      final response = await http.post(url, headers: headers, body: body);
+      print('Status code: ${response.statusCode}'); // Debug
+      print('Response body: ${response.body}'); // Debug
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['error'] != null) {
+          return {
+            'error': data['error']['message'] ??
+                'Error al obtener préstamos para el mapa',
+          };
+        }
+        return data;
+      } else {
+        return {'error': 'Error de conexión: ${response.statusCode}'};
+      }
+    } catch (e) {
+      print('Error al obtener préstamos para el mapa: $e'); // Debug
+      return {'error': 'Error de conexión: $e'};
+    }
+  }
+
+  // Función para obtener coordenadas de préstamos
+  Future<Map<String, dynamic>> getLoanCoordinates(
+      int uid, String loanId) async {
+    final url = Uri.parse('$baseUrl/jsonrpc');
+
+    final headers = {'Content-Type': 'application/json'};
+
+    // Estructura exacta como en Postman
+    final body = jsonEncode({
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": {
+        "service": "object",
+        "method": "execute",
+        "args": [
+          "prestamovf",
+          uid,
+          "1234",
+          "loan.management",
+          "search_read",
+          [
+            ["loan_status", "=", "pending"],
+            ["partner_salesperson.id", "=", uid],
+            ["name", "=", loanId]
+          ],
+          ["id", "partner_latitude", "partner_longitude"]
+        ]
+      }
+    });
+
+    try {
+      print('URL: $url'); // Debug
+      print('Headers: $headers'); // Debug
+      print('Body: $body'); // Debug
+
+      final response = await http.post(url, headers: headers, body: body);
+      print('Status code: ${response.statusCode}'); // Debug
+      print('Response body: ${response.body}'); // Debug
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['error'] != null) {
+          return {
+            'error': data['error']['message'] ?? 'Error al obtener coordenadas',
+          };
+        }
+        return data;
+      } else {
+        return {'error': 'Error de conexión: ${response.statusCode}'};
+      }
+    } catch (e) {
+      print('Error al obtener coordenadas: $e'); // Debug
       return {'error': 'Error de conexión: $e'};
     }
   }

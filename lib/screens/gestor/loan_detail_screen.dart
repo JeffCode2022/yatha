@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
-import '../providers/loan_provider.dart';
-import '../theme/app_theme.dart';
-import '../widgets/payment_modal.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/loan_provider.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/payment_modal.dart';
 
 class LoanDetailScreen extends StatefulWidget {
   const LoanDetailScreen({Key? key}) : super(key: key);
@@ -49,10 +49,9 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
           );
         }
 
-        final clientName =
-            loan['partner_id'] is List
-                ? loan['partner_id'][1]
-                : 'Cliente sin nombre';
+        final clientName = loan['partner_id'] is List
+            ? loan['partner_id'][1]
+            : 'Cliente sin nombre';
         final loanName = loan['name'] ?? 'Préstamo sin nombre';
         final amount = loan['loan_amount'] ?? 0.0;
         final paymentParts = loan['payment_parts'] ?? 0;
@@ -264,44 +263,44 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
 
               // Lista de cuotas
               Expanded(
-                child:
-                    loanProvider.isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : loanProvider.loanPayments.isEmpty
+                child: loanProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : loanProvider.loanPayments.isEmpty
                         ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.calendar_today_outlined,
-                                size: 64,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'No hay cuotas disponibles',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 64,
+                                  color: Colors.grey[400],
                                 ),
-                              ),
-                            ],
-                          ),
-                        )
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No hay cuotas disponibles',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
                         : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          itemCount: loanProvider.loanPayments.length,
-                          itemBuilder: (context, index) {
-                            final payment = loanProvider.loanPayments[index];
-                            return _buildPaymentCard(
-                              context,
-                              payment,
-                              paymentPeriod,
-                              authProvider.user?.uid,
-                            );
-                          },
-                        ),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16.0),
+                            itemCount: loanProvider.loanPayments.length,
+                            itemBuilder: (context, index) {
+                              final payment = loanProvider.loanPayments[index];
+                              return _buildPaymentCard(
+                                context,
+                                payment,
+                                paymentPeriod,
+                                authProvider.user?.uid,
+                              );
+                            },
+                          ),
               ),
             ],
           ),
@@ -360,22 +359,20 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               height: 36,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color:
-                    isPaid
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
+                color: isPaid
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.grey.withOpacity(0.1),
               ),
               child: Center(
-                child:
-                    isPaid
-                        ? const Icon(Icons.check, color: Colors.green, size: 20)
-                        : Text(
-                          (payment['name'] ?? '').toString().split('/').last,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[700],
-                          ),
+                child: isPaid
+                    ? const Icon(Icons.check, color: Colors.green, size: 20)
+                    : Text(
+                        (payment['name'] ?? '').toString().split('/').last,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[700],
                         ),
+                      ),
               ),
             ),
             const SizedBox(width: 12),
@@ -451,16 +448,15 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (context) => PaymentModal(
-            payment: payment,
-            paymentPeriod: paymentPeriod,
-            uid: uid,
-            onPaymentComplete: () {
-              // Recargar pagos después de registrar uno
-              _loadLoanPayments();
-            },
-          ),
+      builder: (context) => PaymentModal(
+        payment: payment,
+        paymentPeriod: paymentPeriod,
+        uid: uid,
+        onPaymentComplete: () {
+          // Recargar pagos después de registrar uno
+          _loadLoanPayments();
+        },
+      ),
     );
   }
 }
