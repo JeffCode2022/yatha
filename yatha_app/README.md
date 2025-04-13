@@ -112,8 +112,4 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 
 Tu Nombre - [@tutwitter](https://twitter.com/tutwitter) - email@ejemplo.com
 
-<<<<<<< HEAD
 Link del Proyecto: [https://github.com/tu-usuario/yatha_app](https://github.com/tu-usuario/yatha_app) 
-=======
-Link del Proyecto: [https://github.com/tu-usuario/yatha_app](https://github.com/tu-usuario/yatha_app) 
->>>>>>> fc93021d429f43ba9929eed6815414198c81529a
