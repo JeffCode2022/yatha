@@ -29,7 +29,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     if (authProvider.user?.uid != null && loanProvider.selectedLoan != null) {
       await loanProvider.fetchLoanPayments(
         authProvider.user!.uid,
-        loanProvider.selectedLoan!['name'],
+        loanProvider.selectedLoan!.name,
       );
     }
   }
@@ -49,13 +49,11 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
           );
         }
 
-        final clientName = loan['partner_id'] is List
-            ? loan['partner_id'][1]
-            : 'Cliente sin nombre';
-        final loanName = loan['name'] ?? 'Préstamo sin nombre';
-        final amount = loan['loan_amount'] ?? 0.0;
-        final paymentParts = loan['payment_parts'] ?? 0;
-        final paymentPeriod = loan['payment_period'] ?? 'unknown';
+        final clientName = loan.clientName;
+        final loanName = loan.name;
+        final amount = loan.amount;
+        final paymentParts = loan.term;
+        final paymentPeriod = loan.paymentPeriod;
 
         return Scaffold(
           appBar: AppBar(

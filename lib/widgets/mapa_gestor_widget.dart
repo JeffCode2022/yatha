@@ -6,6 +6,36 @@ import '../services/cliente_service.dart';
 import 'dart:developer' as developer;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
+import 'package:http/http.dart' as http;
+
+class CustomTileProvider extends TileProvider {
+  final http.Client _client = http.Client();
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    if (!_disposed) {
+      _client.close();
+      _disposed = true;
+    }
+    super.dispose();
+  }
+
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
+    final url = getTileUrl(coordinates, options);
+    return NetworkImage(
+      url,
+      headers: const {
+        'User-Agent': 'yatha_app/1.0',
+      },
+    );
+  }
+
+  String getTileUrl(TileCoordinates coordinates, TileLayer options) {
+    return 'https://tile.openstreetmap.org/${coordinates.z}/${coordinates.x}/${coordinates.y}.png';
+  }
+}
 
 class MapaGestorWidget extends StatefulWidget {
   final DateTime selectedDate;
@@ -25,6 +55,9 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
   final List<Marker> _markers = [];
   Position? _currentPosition;
   bool _isLoading = true;
+  bool _retryingTiles = false;
+  int _retryCount = 0;
+  final CustomTileProvider _tileProvider = CustomTileProvider();
   static const LatLng _defaultLocation =
       LatLng(-12.0464, -77.0428); // Lima, Perú
   List<Map<String, dynamic>> _prestamos = [];
@@ -39,6 +72,7 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
   @override
   void dispose() {
     _mapController.dispose();
+    _tileProvider.dispose();
     super.dispose();
   }
 
@@ -406,6 +440,37 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
     }
   }
 
+  void _handleTileError(TileImage tile, Object error, StackTrace? stackTrace) {
+    developer.log('Error cargando tile: $error');
+    if (_retryCount < 3 && mounted && !_retryingTiles) {
+      setState(() {
+        _retryingTiles = true;
+      });
+
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _retryCount++;
+            _retryingTiles = false;
+          });
+        }
+      });
+    }
+  }
+
+  Widget _buildErrorTile(BuildContext context) {
+    return Container(
+      color: Colors.grey[200],
+      child: Center(
+        child: Icon(
+          Icons.map_outlined,
+          size: 64,
+          color: Colors.grey[400],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -413,29 +478,63 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: _currentPosition != null
+            center: _currentPosition != null
                 ? LatLng(
                     _currentPosition!.latitude, _currentPosition!.longitude)
                 : _defaultLocation,
-            initialZoom: 13,
-            interactiveFlags: InteractiveFlag.all,
+            zoom: 13.0,
+            maxZoom: 18.0,
+            minZoom: 3.0,
           ),
           children: [
             TileLayer(
-              urlTemplate:
-                  'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-              subdomains: ['a', 'b', 'c'],
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.yatha.app',
-              maxZoom: 19,
+              tileProvider: _tileProvider,
+              errorImage: const AssetImage('assets/map_placeholder.png'),
+              errorTileCallback: (tile, error, stackTrace) {
+                developer.log(
+                  'Error loading tile',
+                  error: error,
+                  stackTrace: stackTrace,
+                );
+              },
             ),
             MarkerLayer(markers: _markers),
           ],
         ),
         if (_isLoading)
           Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(0.5),
             child: const Center(
               child: CircularProgressIndicator(),
+            ),
+          ),
+        if (_retryingTiles)
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 8),
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(width: 16),
+                  const Text(
+                    'Recargando mapa...',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
             ),
           ),
         Positioned(

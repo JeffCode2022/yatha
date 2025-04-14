@@ -206,7 +206,6 @@ class ClienteService {
               'loan.management',
               'search_read',
               [
-                ['payment_period', '=', 'daily'],
                 ['loan_status', '=', 'pending'],
                 ['partner_salesperson.id', '=', credentials['uid']]
               ],

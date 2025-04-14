@@ -1,75 +1,72 @@
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
+import '../models/loan.dart';
 
 class LoanProvider with ChangeNotifier {
-  List<dynamic> _monthlyLoans = [];
-  List<dynamic> _dailyLoans = [];
-  List<dynamic> _searchResults = [];
-  Map<String, dynamic>? _selectedLoan;
+  List<Loan> _loans = [];
+  List<Loan> _searchResults = [];
+  Loan? _selectedLoan;
   List<dynamic> _loanPayments = [];
   bool _isLoading = false;
   bool _isSearching = false;
   String? _errorMessage;
   String _searchQuery = '';
+  Map<String, int> _loanStats = {
+    'total': 0,
+    'active': 0,
+    'pending': 0,
+    'completed': 0,
+  };
 
-  List<dynamic> get monthlyLoans => _monthlyLoans;
-  List<dynamic> get dailyLoans => _dailyLoans;
-  List<dynamic> get searchResults => _searchResults;
-  Map<String, dynamic>? get selectedLoan => _selectedLoan;
+  // Getters
+  List<Loan> get loans => _loans;
+  List<Loan> get searchResults => _searchResults;
+  Loan? get selectedLoan => _selectedLoan;
   List<dynamic> get loanPayments => _loanPayments;
   bool get isLoading => _isLoading;
   bool get isSearching => _isSearching;
   String? get errorMessage => _errorMessage;
   String get searchQuery => _searchQuery;
+  Map<String, int> get loanStats => _loanStats;
 
-  // Función para obtener los préstamos mensuales
-  Future<void> fetchMonthlyLoans(int uid) async {
+  // Función unificada para obtener préstamos
+  Future<void> fetchLoans(int uid, String paymentPeriod) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final response = await ApiService().getAssignedLoans(uid, "monthly");
+      final response = await ApiService().getAssignedLoans(uid, paymentPeriod);
 
       if (response.containsKey('error')) {
         _errorMessage = response['error'];
-        _monthlyLoans = [];
-      } else {
-        _monthlyLoans = response['result'] ?? [];
+        _loans = [];
+      } else if (response.containsKey('success') && response['success']) {
+        final loansList = response['loans'] ?? [];
+        _loans = loansList.map<Loan>((loan) => Loan.fromJson(loan)).toList();
+        _updateLoanStats();
         _errorMessage = null;
+      } else {
+        _errorMessage = 'Formato de respuesta inválido';
+        _loans = [];
       }
     } catch (e) {
-      _errorMessage = 'Error al cargar préstamos mensuales: $e';
-      _monthlyLoans = [];
+      _errorMessage = 'Error al cargar préstamos: $e';
+      _loans = [];
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  // Función para obtener los préstamos diarios
-  Future<void> fetchDailyLoans(int uid) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final response = await ApiService().getAssignedLoans(uid, "daily");
-
-      if (response.containsKey('error')) {
-        _errorMessage = response['error'];
-        _dailyLoans = [];
-      } else {
-        _dailyLoans = response['result'] ?? [];
-        _errorMessage = null;
-      }
-    } catch (e) {
-      _errorMessage = 'Error al cargar préstamos diarios: $e';
-      _dailyLoans = [];
-    }
-
-    _isLoading = false;
-    notifyListeners();
+  // Actualizar estadísticas de préstamos
+  void _updateLoanStats() {
+    _loanStats = {
+      'total': _loans.length,
+      'active': _loans.where((loan) => loan.status == 'active').length,
+      'pending': _loans.where((loan) => loan.status == 'pending').length,
+      'completed': _loans.where((loan) => loan.status == 'completed').length,
+    };
   }
 
   // Función para buscar préstamos por nombre de cliente
@@ -86,9 +83,14 @@ class LoanProvider with ChangeNotifier {
       if (response.containsKey('error')) {
         _errorMessage = response['error'];
         _searchResults = [];
-      } else {
-        _searchResults = response['result'] ?? [];
+      } else if (response.containsKey('success') && response['success']) {
+        final loansList = response['loans'] ?? [];
+        _searchResults =
+            loansList.map<Loan>((loan) => Loan.fromJson(loan)).toList();
         _errorMessage = null;
+      } else {
+        _errorMessage = 'Formato de respuesta inválido';
+        _searchResults = [];
       }
     } catch (e) {
       _errorMessage = 'Error al buscar préstamos: $e';
@@ -107,7 +109,7 @@ class LoanProvider with ChangeNotifier {
   }
 
   // Función para seleccionar un préstamo
-  void selectLoan(Map<String, dynamic> loan) {
+  void selectLoan(Loan loan) {
     _selectedLoan = loan;
     notifyListeners();
   }
@@ -147,6 +149,14 @@ class LoanProvider with ChangeNotifier {
   void clearSelectedLoan() {
     _selectedLoan = null;
     _loanPayments = [];
+    notifyListeners();
+  }
+
+  // Método para limpiar todos los datos
+  void clearData() {
+    _loans = [];
+    _isLoading = false;
+    _errorMessage = null;
     notifyListeners();
   }
 }

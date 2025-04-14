@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:get/get.dart';
 import 'package:yatha_app/providers/auth_provider.dart';
 import 'package:yatha_app/providers/loan_provider.dart';
 import 'package:yatha_app/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:yatha_app/providers/cliente_provider.dart';
+import 'package:yatha_app/models/loan.dart';
 
 class LoansScreen extends StatefulWidget {
   const LoansScreen({Key? key}) : super(key: key);
@@ -192,162 +194,177 @@ class _LoansScreenState extends State<LoansScreen> {
         final amount = loan['loan_amount'] ?? 0.0;
         final status = loan['loan_status'] ?? 'pending';
         final paymentPeriod = loan['payment_period'] ?? 'daily';
+        final loanId = loan['id']?.toString() ?? '';
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: const Offset(0, 4),
-                  blurRadius: 12,
-                ),
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: const Offset(0, -2),
-                  blurRadius: 4,
-                ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  Provider.of<LoanProvider>(context, listen: false)
-                      .selectLoan(loan);
-                  Navigator.pushNamed(context, '/loan-detail');
-                },
+          child: InkWell(
+            onTap: () {
+              Get.toNamed(
+                '/loan-detail',
+                arguments: {'loanId': loanId},
+              );
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color:
-                                  AppTheme.colorScheme.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(
-                                clientName[0].toUpperCase(),
-                                style: TextStyle(
-                                  color: AppTheme.colorScheme.primary,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    offset: const Offset(0, 4),
+                    blurRadius: 12,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    offset: const Offset(0, -2),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    final loanProvider =
+                        Provider.of<LoanProvider>(context, listen: false);
+                    final loanObject = Loan.fromJson(loan);
+                    loanProvider.selectLoan(loanObject);
+                    Get.toNamed(
+                      '/loan-detail',
+                      arguments: {'loanId': loanId},
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: AppTheme.colorScheme.primary
+                                    .withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  clientName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
+                              child: Center(
+                                child: Text(
+                                  clientName[0].toUpperCase(),
+                                  style: TextStyle(
+                                    color: AppTheme.colorScheme.primary,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: paymentPeriod == 'daily'
-                                            ? Colors.blue.withOpacity(0.1)
-                                            : Colors.purple.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        paymentPeriod == 'daily'
-                                            ? 'Diario'
-                                            : 'Mensual',
-                                        style: TextStyle(
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    clientName,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
                                           color: paymentPeriod == 'daily'
-                                              ? Colors.blue
-                                              : Colors.purple,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
+                                              ? Colors.blue.withOpacity(0.1)
+                                              : Colors.purple.withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          paymentPeriod == 'daily'
+                                              ? 'Diario'
+                                              : 'Mensual',
+                                          style: TextStyle(
+                                            color: paymentPeriod == 'daily'
+                                                ? Colors.blue
+                                                : Colors.purple,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Monto del préstamo',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'S/.${amount.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Monto del préstamo',
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: status == 'pending'
+                                    ? Colors.orange.withOpacity(0.1)
+                                    : Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: status == 'pending'
+                                      ? Colors.orange
+                                      : Colors.green,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                status == 'pending' ? 'Pendiente' : 'Pagado',
                                 style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 12,
+                                  color: status == 'pending'
+                                      ? Colors.orange
+                                      : Colors.green,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'S/.${amount.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
                             ),
-                            decoration: BoxDecoration(
-                              color: status == 'pending'
-                                  ? Colors.orange.withOpacity(0.1)
-                                  : Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: status == 'pending'
-                                    ? Colors.orange
-                                    : Colors.green,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              status == 'pending' ? 'Pendiente' : 'Pagado',
-                              style: TextStyle(
-                                color: status == 'pending'
-                                    ? Colors.orange
-                                    : Colors.green,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

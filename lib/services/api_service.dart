@@ -81,6 +81,8 @@ class ApiService {
           await prefs.setString('username', username);
           await prefs.setString(
               'password', '1234'); // Contraseña fija como en Postman
+          await prefs.setString(
+              'auth_token', result['token'] ?? ''); // Guardamos el token
 
           print('ApiService - Datos guardados en SharedPreferences');
 
@@ -112,7 +114,6 @@ class ApiService {
     int uid,
     String paymentPeriod,
   ) async {
-    final url = Uri.parse('$baseUrl/jsonrpc');
     final credentials = await _getCredentials();
 
     if (credentials.isEmpty) {
@@ -121,12 +122,44 @@ class ApiService {
       return {'error': 'No hay credenciales disponibles'};
     }
 
+    final url = Uri.parse('$baseUrl/jsonrpc');
+
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
 
-    // Estructura exacta como en Postman para préstamos mensuales/diarios
+    // Determinar los filtros según el tipo de préstamo
+    final queryFilters = [
+      ["payment_period", "=", paymentPeriod],
+      [
+        "loan_status",
+        "in",
+        ["pending", "active"]
+      ],
+      ["partner_salesperson.id", "=", uid]
+    ];
+
+    final queryFields = [
+      "id",
+      "partner_id",
+      "name",
+      "loan_amount",
+      "payment_parts",
+      "payment_period",
+      "loan_status",
+      "payment_frequency",
+      "start_date",
+      "first_payment_date",
+      "due_date",
+      "partner_latitude",
+      "partner_longitude",
+      "amount_due_today",
+      "total_cash_payments",
+      "total_transfer_payments",
+      "current_due"
+    ];
+
     final body = jsonEncode({
       "jsonrpc": "2.0",
       "method": "call",
@@ -137,20 +170,10 @@ class ApiService {
           "prestamovf",
           credentials['uid'],
           credentials['password'],
-          "loan.loan",
+          "loan.management",
           "search_read",
-          [
-            ["user_id", "=", uid],
-            ["payment_period", "=", paymentPeriod]
-          ],
-          [
-            "name",
-            "partner_id",
-            "loan_amount",
-            "payment_parts",
-            "payment_period",
-            "loan_status"
-          ]
+          queryFilters,
+          queryFields
         ]
       }
     });
@@ -167,16 +190,34 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['error'] != null) {
+
+        if (data.containsKey('error')) {
           print('ApiService - getAssignedLoans Error: ${data['error']}');
-          return {'error': data['error']['message']};
+          return {
+            'error': data['error']['data']['message'] ??
+                'Error al obtener préstamos',
+            'success': false
+          };
         }
-        return {'success': true, 'loans': data['result']};
+
+        if (data.containsKey('result')) {
+          final loans = data['result'] as List<dynamic>;
+          print('ApiService - Préstamos encontrados: ${loans.length}');
+          return {'success': true, 'loans': loans};
+        }
+
+        print('ApiService - Respuesta inesperada: $data');
+        return {'error': 'Formato de respuesta inválido', 'success': false};
       }
-      return {'error': 'Error en la conexión: ${response.statusCode}'};
+
+      print('ApiService - Error de conexión: ${response.statusCode}');
+      return {
+        'error': 'Error en la conexión, código: ${response.statusCode}',
+        'success': false
+      };
     } catch (e) {
       print('ApiService - getAssignedLoans Error: $e');
-      return {'error': 'Error de conexión: $e'};
+      return {'error': 'Error de conexión: $e', 'success': false};
     }
   }
 
@@ -287,9 +328,17 @@ class ApiService {
     int uid,
     String clientName,
   ) async {
+    final token = await _getToken();
+    if (token == null) {
+      return {'error': 'No hay token de autenticación'};
+    }
+
     final url = Uri.parse('$baseUrl/jsonrpc');
 
-    final headers = {'Content-Type': 'application/json'};
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
 
     final body = jsonEncode({
       "jsonrpc": "2.0",
@@ -300,7 +349,7 @@ class ApiService {
         "args": [
           "prestamovf",
           uid,
-          "1234", // Password fijo como en Postman
+          "admin",
           "loan.management",
           "search_read",
           [
@@ -317,36 +366,44 @@ class ApiService {
             "amount_due_today",
             "partner_latitude",
             "partner_longitude",
-            "loan_status"
+            "loan_status",
+            "partner_phone",
+            "partner_address",
+            "installments"
           ]
         ]
       }
     });
 
     try {
-      print('URL: $url'); // Debug
-      print('Headers: $headers'); // Debug
-      print('Body: $body'); // Debug
-
       final response = await http.post(url, headers: headers, body: body);
-      print('Status code: ${response.statusCode}'); // Debug
-      print('Response body: ${response.body}'); // Debug
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
         if (data['error'] != null) {
           return {
             'error': data['error']['message'] ?? 'Error al buscar préstamos',
           };
         }
-        return data;
+
+        if (data['result'] != null) {
+          return {
+            'success': true,
+            'loans': data['result'],
+          };
+        }
+
+        return {
+          'success': true,
+          'loans': [],
+        };
       } else {
         return {
           'error': 'Error en la conexión, código: ${response.statusCode}',
         };
       }
     } catch (e) {
-      print('Error al buscar préstamos: $e'); // Debug
       return {'error': 'Error de conexión: $e'};
     }
   }
@@ -713,6 +770,16 @@ class ApiService {
     } catch (e) {
       print('Error al obtener coordenadas: $e'); // Debug
       return {'error': 'Error de conexión: $e'};
+    }
+  }
+
+  Future<String?> _getToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('auth_token');
+    } catch (e) {
+      print('Error al obtener el token: $e');
+      return null;
     }
   }
 }

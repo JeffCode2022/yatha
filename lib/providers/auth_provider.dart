@@ -146,15 +146,13 @@ class AuthProvider with ChangeNotifier {
 
       // Eliminar datos guardados
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('uid');
-      await prefs.remove('role');
-      await prefs.remove('username');
-      await prefs.remove('password');
+      await prefs.clear(); // Limpia todas las preferencias
 
-      print('AuthProvider - Datos eliminados de SharedPreferences');
-
+      // Reiniciar estado del AuthProvider
       _user = null;
+      _errorMessage = null;
       _isAuthenticated = false;
+
       notifyListeners();
     } catch (e) {
       print('AuthProvider - Error durante el logout: $e');

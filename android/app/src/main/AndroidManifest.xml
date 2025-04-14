@@ -6,7 +6,8 @@
     <application
         android:label="Yatha"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBV7ECMpja47Pu0shoRXUMUAPYY2CSX1G0"/>

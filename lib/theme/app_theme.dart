@@ -1,28 +1,52 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  static final ColorScheme colorScheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xFF2E3147),
+    primary: const Color(0xFF2E3147),
+    secondary: const Color(0xFF4A90E2),
+    background: const Color(0xFFF5F6FA),
+  );
+
+  static final ThemeData lightTheme = ThemeData(
+    useMaterial3: true,
+    colorScheme: colorScheme,
+    appBarTheme: AppBarTheme(
+      backgroundColor: colorScheme.primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+    ),
+    scaffoldBackgroundColor: colorScheme.background,
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(
+          color: colorScheme.primary,
+          width: 2,
+        ),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    ),
+    cardTheme: CardTheme(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  );
+
   static const primaryColor = Color(0xFF1565C0);
   static const secondaryColor = Color(0xFF2E7D32);
   static const tertiaryColor = Color(0xFFD32F2F);
-  
-  static const colorScheme = ColorScheme(
-    brightness: Brightness.light,
-    primary: primaryColor,
-    onPrimary: Colors.white,
-    secondary: secondaryColor,
-    onSecondary: Colors.white,
-    error: Color(0xFFB00020),
-    onError: Colors.white,
-    background: Color(0xFFF5F5F5),
-    onBackground: Color(0xFF121212),
-    surface: Colors.white,
-    onSurface: Color(0xFF121212),
-    primaryContainer: Color(0xFFBBDEFB),
-    onPrimaryContainer: Color(0xFF0D47A1),
-    secondaryContainer: Color(0xFFC8E6C9),
-    onSecondaryContainer: Color(0xFF1B5E20),
-    shadow: Colors.black,
-  );
 
   // Estilos para efectos de blur
   static BoxDecoration blurCardDecoration = BoxDecoration(

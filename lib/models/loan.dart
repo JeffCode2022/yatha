@@ -1,6 +1,3 @@
-import 'dart:ui';
-
-import 'package:yatha_app/theme/app_theme.dart';
 
 class Loan {
   final int id;
@@ -87,7 +84,6 @@ class Loan {
       'partner_address': clientAddress,
     };
   }
-  
 
   // Método para obtener el texto del estado en español
   String getStatusText() {
@@ -127,7 +123,9 @@ class Installment {
       dueDate: json['payment_date'] ?? '',
       amount: (json['payment_amount'] ?? 0.0).toDouble(),
       status: json['payment_status'] ?? 'pending',
-      paidAmount: json['paid_amount'] != null ? (json['paid_amount'] as num).toDouble() : null,
+      paidAmount: json['paid_amount'] != null
+          ? (json['paid_amount'] as num).toDouble()
+          : null,
       paymentMethod: json['payment_met'],
     );
   }
@@ -143,7 +141,6 @@ class Installment {
     };
   }
 
-  
   // Método para obtener el texto del estado en español
   String getStatusText() {
     switch (status.toLowerCase()) {

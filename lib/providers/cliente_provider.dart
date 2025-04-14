@@ -114,4 +114,13 @@ class ClienteProvider with ChangeNotifier {
           clientesVendedor.where((c) => c['estado'] == 'inactivo').length,
     };
   }
+
+  // Método para limpiar todos los datos
+  void clearData() {
+    _loans = [];
+    _isLoading = false;
+    _error = null;
+    _filteredLoans = [];
+    notifyListeners();
+  }
 }

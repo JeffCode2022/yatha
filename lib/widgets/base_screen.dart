@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:get/get.dart';
 import '../providers/auth_provider.dart';
+import '../providers/kpi_provider.dart';
+import '../providers/loan_provider.dart';
+import '../providers/payment_provider.dart';
+import '../providers/cliente_provider.dart';
 import '../theme/app_theme.dart';
+import '../routes/app_routes.dart';
+import '../screens/home_screen.dart';
 
 class BaseScreen extends StatelessWidget {
   final String title;
@@ -19,15 +26,39 @@ class BaseScreen extends StatelessWidget {
     this.bottomNavigationBar,
   }) : super(key: key);
 
+  Future<void> _handleLogout(BuildContext context) async {
+    // Limpiar datos de todos los providers
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final kpiProvider = Provider.of<KpiProvider>(context, listen: false);
+    final loanProvider = Provider.of<LoanProvider>(context, listen: false);
+    final paymentProvider =
+        Provider.of<PaymentProvider>(context, listen: false);
+    final clienteProvider =
+        Provider.of<ClienteProvider>(context, listen: false);
+
+    // Limpiar datos de cada provider
+    kpiProvider.changeUser(null);
+    loanProvider.clearData();
+    paymentProvider.clearData();
+    clienteProvider.clearData();
+
+    // Cerrar sesión en AuthProvider
+    await authProvider.logout();
+
+    // Navegar a la pantalla de login y eliminar todas las rutas anteriores
+    Get.offAllNamed(AppRoutes.login);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
+        final isSupervisor = authProvider.user?.role == 'supervisor';
         return Scaffold(
           drawer: showDrawer ? _buildDrawer(context, authProvider) : null,
           appBar: AppBar(
             title: Text(title),
-            backgroundColor: AppTheme.colorScheme.primary,
+            backgroundColor: Color(0xFF0DB774).withOpacity(1),
             actions: actions,
           ),
           body: SafeArea(
@@ -40,12 +71,15 @@ class BaseScreen extends StatelessWidget {
   }
 
   Widget _buildDrawer(BuildContext context, AuthProvider authProvider) {
+    final isSupervisor = authProvider.user?.role == 'supervisor';
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: AppTheme.colorScheme.primary),
+            decoration:
+                BoxDecoration(color: Color(0xFF0DB774).withOpacity(1)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
@@ -61,8 +95,8 @@ class BaseScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Gestor',
-                  style: TextStyle(
+                  authProvider.user?.name ?? 'Usuario',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -78,51 +112,75 @@ class BaseScreen extends StatelessWidget {
               ],
             ),
           ),
-          _buildDrawerItem(
-            context: context,
-            icon: Icons.dashboard,
-            title: 'Dashboard',
-            route: '/gestor/home',
-            isSelected: title == 'Dashboard',
-          ),
-          _buildDrawerItem(
-            context: context,
-            icon: Icons.payment,
-            title: 'Pagos',
-            route: '/gestor/payments',
-            isSelected: title == 'Pagos',
-          ),
-          _buildDrawerItem(
-            context: context,
-            icon: Icons.people,
-            title: 'Clientes',
-            route: '/gestor/clients',
-            isSelected: title == 'Clientes',
-          ),
-          _buildDrawerItem(
-            context: context,
-            icon: Icons.analytics,
-            title: 'KPIs',
-            route: '/gestor/kpis',
-            isSelected: title == 'KPIs',
-          ),
+          if (isSupervisor) ...[
+            _buildDrawerItem(
+              context: context,
+              icon: Icons.analytics,
+              title: 'KPIs de Gestores',
+              route: AppRoutes.supervisorKpis,
+              isSelected: title == 'KPIs de Gestores',
+            ),
+            _buildDrawerItem(
+              context: context,
+              icon: Icons.map,
+              title: 'Mapa de Cobros',
+              route: AppRoutes.supervisorMap,
+              isSelected: title == 'Mapa de Cobros',
+            ),
+          ] else ...[
+            _buildDrawerItem(
+              context: context,
+              icon: Icons.account_balance_wallet,
+              title: 'Mis Préstamos',
+              route: AppRoutes.gestorLoans,
+              isSelected: title == 'Mis Préstamos',
+            ),
+            _buildDrawerItem(
+              context: context,
+              icon: Icons.map,
+              title: 'Mapa de Cobros',
+              route: AppRoutes.gestorMap,
+              isSelected: title == 'Mapa de Cobros',
+            ),
+            _buildDrawerItem(
+              context: context,
+              icon: Icons.analytics,
+              title: 'Mis KPIs',
+              route: AppRoutes.gestorKpis,
+              isSelected: title == 'Indicadores',
+            ),
+          ],
           const Divider(),
           _buildDrawerItem(
             context: context,
             icon: Icons.logout,
             title: 'Cerrar Sesión',
-            route: '/login',
+            route: AppRoutes.login,
             isSelected: false,
-            onTap: () async {
-              await authProvider.logout();
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                  (route) => false,
-                );
-              }
-            },
+            onTap: () => showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Cerrar Sesión'),
+                content: const Text('¿Estás seguro que deseas cerrar sesión?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _handleLogout(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Cerrar Sesión'),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -138,21 +196,50 @@ class BaseScreen extends StatelessWidget {
     VoidCallback? onTap,
   }) {
     return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
+      leading: Icon(
+        icon,
+        color: isSelected ? AppTheme.colorScheme.primary : null,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? AppTheme.colorScheme.primary : null,
+          fontWeight: isSelected ? FontWeight.bold : null,
+        ),
+      ),
       selected: isSelected,
-      selectedTileColor: AppTheme.colorScheme.primary.withOpacity(0.1),
       onTap: onTap ??
           () {
-            Navigator.pop(context);
-            if (route == '/login') {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                route,
-                (route) => false,
+            Get.back(); // Cerrar el drawer
+
+            // Navegar según la ruta
+            if (route == AppRoutes.gestorKpis) {
+              Get.offAll(
+                () => const HomeScreen(initialIndex: 2),
+                transition: Transition.fade,
+              );
+            } else if (route == AppRoutes.gestorLoans) {
+              Get.offAll(
+                () => const HomeScreen(initialIndex: 0),
+                transition: Transition.fade,
+              );
+            } else if (route == AppRoutes.gestorMap) {
+              Get.offAll(
+                () => const HomeScreen(initialIndex: 1),
+                transition: Transition.fade,
+              );
+            } else if (route == AppRoutes.supervisorKpis) {
+              Get.offAll(
+                () => const HomeScreen(initialIndex: 0),
+                transition: Transition.fade,
+              );
+            } else if (route == AppRoutes.supervisorMap) {
+              Get.offAll(
+                () => const HomeScreen(initialIndex: 1),
+                transition: Transition.fade,
               );
             } else {
-              Navigator.pushReplacementNamed(context, route);
+              Get.offAllNamed(route);
             }
           },
     );

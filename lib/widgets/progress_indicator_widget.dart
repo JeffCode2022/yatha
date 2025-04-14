@@ -4,11 +4,15 @@ import '../theme/app_theme.dart';
 class ProgressIndicatorWidget extends StatelessWidget {
   final double value;
   final double height;
+  final Color color;
+  final Color backgroundColor;
 
   const ProgressIndicatorWidget({
     Key? key,
     required this.value,
-    this.height = 8,
+    this.height = 4.0,
+    required this.color,
+    this.backgroundColor = const Color(0xFFE0E0E0),
   }) : super(key: key);
 
   @override
@@ -16,21 +20,14 @@ class ProgressIndicatorWidget extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(height / 2),
       ),
       child: FractionallySizedBox(
         widthFactor: value.clamp(0.0, 1.0),
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppTheme.colorScheme.primary,
-                AppTheme.colorScheme.secondary,
-              ],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            color: color,
             borderRadius: BorderRadius.circular(height / 2),
           ),
         ),

@@ -10,14 +10,14 @@ class PaymentProvider with ChangeNotifier {
   bool _disposed = false;
 
   static Map<String, dynamic> _emptyKpiData() => {
-    'onTime': 0,
-    'late': 0,
-    'pending': 0,
-    'totalAmount': 0.0,
-    'totalPaid': 0.0,
-    'totalPending': 0.0,
-    'payments': [],
-  };
+        'onTime': 0,
+        'late': 0,
+        'pending': 0,
+        'totalAmount': 0.0,
+        'totalPaid': 0.0,
+        'totalPending': 0.0,
+        'payments': [],
+      };
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -142,5 +142,14 @@ class PaymentProvider with ChangeNotifier {
     return (_kpiData['onTime']?.toInt() ?? 0) +
         (_kpiData['late']?.toInt() ?? 0) +
         (_kpiData['pending']?.toInt() ?? 0);
+  }
+
+  // Método para limpiar todos los datos
+  void clearData() {
+    _kpiData = _emptyKpiData();
+    _isLoading = false;
+    _errorMessage = null;
+    _selectedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _safeNotifyListeners();
   }
 }
