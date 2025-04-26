@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:yatha_app/src/models/user_role.dart';
 import 'package:yatha_app/utils/theme/app_theme.dart';
+import 'package:get/get.dart';
 
-
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   final UserRole userRole;
   final String userName;
   final String userEmail;
@@ -23,6 +23,11 @@ class AppDrawer extends StatelessWidget {
     required this.onLogout,
   }) : super(key: key);
 
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -64,10 +69,12 @@ class AppDrawer extends StatelessWidget {
           CircleAvatar(
             radius: 40,
             backgroundColor: Colors.white,
-            backgroundImage: userAvatar != null ? NetworkImage(userAvatar!) : null,
-            child: userAvatar == null
+            backgroundImage: widget.userAvatar != null
+                ? NetworkImage(widget.userAvatar!)
+                : null,
+            child: widget.userAvatar == null
                 ? Text(
-                    userName.substring(0, 1).toUpperCase(),
+                    widget.userName.substring(0, 1).toUpperCase(),
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -78,7 +85,7 @@ class AppDrawer extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            userName,
+            widget.userName,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -93,7 +100,7 @@ class AppDrawer extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              userRole == UserRole.supervisor ? 'Supervisor' : 'Gestor',
+              widget.userRole == UserRole.supervisor ? 'Supervisor' : 'Gestor',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -103,7 +110,7 @@ class AppDrawer extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            userEmail,
+            widget.userEmail,
             style: TextStyle(
               color: Colors.white.withOpacity(0.8),
               fontSize: 14,
@@ -115,7 +122,7 @@ class AppDrawer extends StatelessWidget {
   }
 
   Widget _buildMenuItems() {
-    final List<DrawerItem> items = userRole == UserRole.supervisor
+    final List<DrawerItem> items = widget.userRole == UserRole.supervisor
         ? [
             DrawerItem(
               icon: Icons.dashboard_outlined,
@@ -171,7 +178,7 @@ class AppDrawer extends StatelessWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index];
-        final isSelected = selectedIndex == item.index;
+        final isSelected = widget.selectedIndex == item.index;
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -198,7 +205,25 @@ class AppDrawer extends StatelessWidget {
               ),
             ),
             onTap: () {
-              onItemSelected(item.index);
+              // Usar Get.back() para cerrar el drawer de manera segura
+              Get.back();
+
+              // Esperar a que el drawer se cierre antes de navegar
+              Future.delayed(const Duration(milliseconds: 300), () {
+                try {
+                  widget.onItemSelected(item.index);
+                } catch (e) {
+                  print('Error al navegar: $e');
+                  Get.snackbar(
+                    'Error',
+                    'Error al navegar. Por favor intente nuevamente.',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                    duration: const Duration(seconds: 2),
+                  );
+                }
+              });
             },
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -227,7 +252,27 @@ class AppDrawer extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        onTap: onLogout,
+        onTap: () {
+          // Usar Get.back() para cerrar el drawer de manera segura
+          Get.back();
+
+          // Esperar a que el drawer se cierre antes de hacer logout
+          Future.delayed(const Duration(milliseconds: 300), () {
+            try {
+              widget.onLogout();
+            } catch (e) {
+              print('Error al cerrar sesión: $e');
+              Get.snackbar(
+                'Error',
+                'Error al cerrar sesión. Por favor intente nuevamente.',
+                snackPosition: SnackPosition.BOTTOM,
+                backgroundColor: Colors.red,
+                colorText: Colors.white,
+                duration: const Duration(seconds: 2),
+              );
+            }
+          });
+        },
       ),
     );
   }

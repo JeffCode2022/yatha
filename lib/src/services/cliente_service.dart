@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yatha_app/config/environment.dart';
 import 'dart:developer' as developer;
 
 class ClienteService {
-  static const String _baseUrl = 'https://8d5b-38-25-28-10.ngrok-free.app';
+  static const String _baseUrl = Environment.apiUrl;
 
   Future<Map<String, dynamic>> _getCredentials() async {
     final prefs = await SharedPreferences.getInstance();
@@ -206,53 +207,64 @@ class ClienteService {
               'loan.management',
               'search_read',
               [
-                ['loan_status', '=', 'pending'],
-                ['partner_salesperson.id', '=', credentials['uid']]
+                ['partner_salesperson', '=', int.parse(uid)],
+                ['loan_status', '=', 'pending']
               ],
               [
                 'id',
-                'partner_id',
-                'partner_salesperson',
-                'payment_parts',
-                'days_overdue',
-                'create_uid',
-                'write_uid',
                 'name',
-                'prestamo_anterior',
+                'partner_id',
+                'loan_amount',
                 'payment_period',
-                'loan_status',
-                'payment_frequency',
-                'start_date',
-                'first_payment_date',
-                'due_date',
+                'payment_parts',
+                'amount_due_today',
                 'partner_latitude',
                 'partner_longitude',
-                'create_date',
-                'write_date',
-                'total_interest_paid',
-                'loan_amount',
-                'interest_rate',
-                'real_interest_rate',
+                'loan_status',
                 'total_amount',
-                'profit',
-                'current_due',
-                'payment_amount',
-                'amount_due_today',
-                'total_cash_payments',
-                'total_transfer_payments'
+                'current_due'
               ]
             ]
           }
         }),
       );
 
-      developer.log('Respuesta de préstamos - Status: ${response.statusCode}');
-      developer.log('Respuesta de préstamos - Body: ${response.body}');
+      developer.log('Response status: ${response.statusCode}');
+      developer.log('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['result'] != null) {
-          return List<Map<String, dynamic>>.from(data['result']);
+          final loans = List<Map<String, dynamic>>.from(data['result'])
+              .map((loan) {
+                try {
+                  // Asegurarse de que todos los campos necesarios estén presentes y obtener el teléfono y dirección del partner_id
+                  final partnerInfo = loan['partner_id'] ?? [0, 'Sin nombre'];
+                  return {
+                    'id': loan['id'] ?? 0,
+                    'name': loan['name'] ?? '',
+                    'partner_id': partnerInfo,
+                    'loan_amount': loan['loan_amount'] ?? 0.0,
+                    'payment_period': loan['payment_period'] ?? 'monthly',
+                    'payment_parts': loan['payment_parts'] ?? 0,
+                    'amount_due_today':
+                        loan['amount_due_today'] ?? loan['current_due'] ?? 0.0,
+                    'partner_latitude': loan['partner_latitude'] ?? 0.0,
+                    'partner_longitude': loan['partner_longitude'] ?? 0.0,
+                    'loan_status': loan['loan_status'] ?? 'pending',
+                    'total_amount': loan['total_amount'] ?? 0.0
+                  };
+                } catch (e) {
+                  developer.log('Error procesando préstamo: $e');
+                  return null;
+                }
+              })
+              .where((loan) => loan != null)
+              .cast<Map<String, dynamic>>()
+              .toList();
+
+          developer.log('Préstamos procesados: ${loans.length}');
+          return loans;
         }
         throw Exception('No se encontraron préstamos');
       } else {

@@ -7,10 +7,14 @@ import 'dart:developer' as developer;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
 import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 
 class CustomTileProvider extends TileProvider {
   final http.Client _client = http.Client();
   bool _disposed = false;
+  final Map<String, Uint8List> _cache = {};
+  static const int maxRetries = 3;
+  static const Duration retryDelay = Duration(seconds: 1);
 
   @override
   void dispose() {
@@ -21,19 +25,56 @@ class CustomTileProvider extends TileProvider {
     super.dispose();
   }
 
+  Future<Uint8List?> _fetchTileWithRetry(String url, int retryCount) async {
+    try {
+      // Verificar si está en caché
+      if (_cache.containsKey(url)) {
+        return _cache[url];
+      }
+
+      final response = await _client.get(
+        Uri.parse(url),
+        headers: {
+          'User-Agent': 'yatha_app/1.0',
+          'Accept': 'image/png',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        // Guardar en caché
+        _cache[url] = response.bodyBytes;
+        return response.bodyBytes;
+      }
+    } catch (e) {
+      print('Error fetching tile: $e');
+      if (retryCount < maxRetries) {
+        await Future.delayed(retryDelay);
+        return _fetchTileWithRetry(url, retryCount + 1);
+      }
+    }
+    return null;
+  }
+
   @override
   ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
     final url = getTileUrl(coordinates, options);
-    return NetworkImage(
-      url,
-      headers: const {
-        'User-Agent': 'yatha_app/1.0',
-      },
+    return ResizeImage(
+      NetworkImage(
+        url,
+        headers: const {
+          'User-Agent': 'yatha_app/1.0',
+          'Accept': 'image/png',
+        },
+      ),
+      width: 256,
+      height: 256,
     );
   }
 
   String getTileUrl(TileCoordinates coordinates, TileLayer options) {
-    return 'https://tile.openstreetmap.org/${coordinates.z}/${coordinates.x}/${coordinates.y}.png';
+    final servers = ['a', 'b', 'c'];
+    final server = servers[coordinates.x % servers.length];
+    return 'https://$server.tile.openstreetmap.org/${coordinates.z}/${coordinates.x}/${coordinates.y}.png';
   }
 }
 
@@ -55,8 +96,7 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
   final List<Marker> _markers = [];
   Position? _currentPosition;
   bool _isLoading = true;
-  bool _retryingTiles = false;
-  int _retryCount = 0;
+  bool _isMapReady = false;
   final CustomTileProvider _tileProvider = CustomTileProvider();
   static const LatLng _defaultLocation =
       LatLng(-12.0464, -77.0428); // Lima, Perú
@@ -440,37 +480,6 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
     }
   }
 
-  void _handleTileError(TileImage tile, Object error, StackTrace? stackTrace) {
-    developer.log('Error cargando tile: $error');
-    if (_retryCount < 3 && mounted && !_retryingTiles) {
-      setState(() {
-        _retryingTiles = true;
-      });
-
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _retryCount++;
-            _retryingTiles = false;
-          });
-        }
-      });
-    }
-  }
-
-  Widget _buildErrorTile(BuildContext context) {
-    return Container(
-      color: Colors.grey[200],
-      child: Center(
-        child: Icon(
-          Icons.map_outlined,
-          size: 64,
-          color: Colors.grey[400],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -478,62 +487,49 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            center: _currentPosition != null
+            initialCenter: _currentPosition != null
                 ? LatLng(
                     _currentPosition!.latitude, _currentPosition!.longitude)
                 : _defaultLocation,
-            zoom: 13.0,
+            initialZoom: 13.0,
             maxZoom: 18.0,
-            minZoom: 3.0,
+            keepAlive: true,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all,
+            ),
+            onMapEvent: (event) {
+              if (!_isMapReady) {
+                setState(() {
+                  _isMapReady = true;
+                });
+              }
+            },
           ),
           children: [
             TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.yatha.app',
+              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              subdomains: const ['a', 'b', 'c'],
               tileProvider: _tileProvider,
-              errorImage: const AssetImage('assets/map_placeholder.png'),
-              errorTileCallback: (tile, error, stackTrace) {
-                developer.log(
-                  'Error loading tile',
-                  error: error,
-                  stackTrace: stackTrace,
+              maxZoom: 18.0,
+              tileBuilder: (context, child, tile) {
+                return AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: child,
                 );
               },
+              errorImage:
+                  Image.asset('assets/images/map_placeholder.png').image,
             ),
             MarkerLayer(markers: _markers),
           ],
         ),
-        if (_isLoading)
-          Container(
-            color: Colors.black.withOpacity(0.5),
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
-          ),
-        if (_retryingTiles)
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
+        if (_isLoading || !_isMapReady)
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 8),
-                  const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    strokeWidth: 2,
-                  ),
-                  const SizedBox(width: 16),
-                  const Text(
-                    'Recargando mapa...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(),
               ),
             ),
           ),

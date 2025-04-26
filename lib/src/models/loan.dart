@@ -1,4 +1,4 @@
-
+/// Representa un préstamo en el sistema
 class Loan {
   final int id;
   final int partnerId;
@@ -34,38 +34,85 @@ class Loan {
     this.clientAddress,
   });
 
+  /// Crea una instancia de Loan desde un mapa JSON
   factory Loan.fromJson(Map<String, dynamic> json) {
-    // Extraer el nombre del cliente del campo partner_id si es una lista
-    String clientName = '';
-    if (json['partner_id'] is List && json['partner_id'].length > 1) {
-      clientName = json['partner_id'][1];
-    }
+    try {
+      // Validar que el JSON no sea nulo
+      if (json.isEmpty) {
+        throw FormatException('JSON vacío al crear Loan');
+      }
 
-    // Crear lista de cuotas si existe el campo
-    List<Installment> installments = [];
-    if (json['installments'] is List) {
-      installments = (json['installments'] as List)
-          .map((item) => Installment.fromJson(item))
-          .toList();
-    }
+      // Extraer el nombre del cliente del campo partner_id si es una lista
+      String clientName = '';
+      if (json['partner_id'] is List && json['partner_id'].length > 1) {
+        clientName = json['partner_id'][1]?.toString() ?? '';
+      }
 
-    return Loan(
-      id: json['id'] ?? 0,
-      partnerId: json['partner_id'] is List ? json['partner_id'][0] : 0,
-      name: json['name'] ?? '',
-      loanNumber: json['name'] ?? '', // Usar el mismo campo para loanNumber
-      clientName: clientName,
-      amount: (json['loan_amount'] ?? 0.0).toDouble(),
-      term: json['payment_parts'] ?? 0,
-      paymentPeriod: json['payment_period'] ?? 'monthly',
-      amountDueToday: (json['amount_due_today'] ?? 0.0).toDouble(),
-      partnerLatitude: (json['partner_latitude'] ?? 0.0).toDouble(),
-      partnerLongitude: (json['partner_longitude'] ?? 0.0).toDouble(),
-      status: json['loan_status'] ?? 'pending',
-      installments: installments,
-      clientPhone: json['partner_phone'],
-      clientAddress: json['partner_address'],
-    );
+      // Crear lista de cuotas si existe el campo
+      List<Installment> installments = [];
+      if (json['installments'] is List) {
+        installments = (json['installments'] as List)
+            .where((item) => item != null)
+            .map((item) => Installment.fromJson(item))
+            .toList();
+      }
+
+      // Asegurar que los valores numéricos sean válidos usando una función helper
+      double loanAmount = _parseDouble(json['loan_amount'], 'loan_amount');
+      double amountDueToday =
+          _parseDouble(json['amount_due_today'], 'amount_due_today');
+      double latitude =
+          _parseDouble(json['partner_latitude'], 'partner_latitude');
+      double longitude =
+          _parseDouble(json['partner_longitude'], 'partner_longitude');
+
+      // Validar el estado del préstamo
+      String status =
+          json['loan_status']?.toString()?.toLowerCase() ?? 'pending';
+      if (!['paid', 'pending', 'late'].contains(status)) {
+        status = 'pending';
+      }
+
+      return Loan(
+        id: json['id'] ?? 0,
+        partnerId: json['partner_id'] is List ? json['partner_id'][0] ?? 0 : 0,
+        name: json['name']?.toString() ?? '',
+        loanNumber: json['name']?.toString() ?? '',
+        clientName: clientName,
+        amount: loanAmount,
+        term: json['payment_parts'] ?? 0,
+        paymentPeriod:
+            json['payment_period']?.toString()?.toLowerCase() ?? 'monthly',
+        amountDueToday: amountDueToday,
+        partnerLatitude: latitude,
+        partnerLongitude: longitude,
+        status: status,
+        installments: installments,
+        clientPhone: _sanitizeString(json['partner_phone']),
+        clientAddress: _sanitizeString(json['partner_address']),
+      );
+    } catch (e) {
+      print('Error al crear Loan desde JSON: $e');
+      rethrow;
+    }
+  }
+
+  /// Convierte un valor a double de forma segura
+  static double _parseDouble(dynamic value, String fieldName) {
+    if (value == null) return 0.0;
+    try {
+      return (value as num).toDouble();
+    } catch (e) {
+      print('Error al convertir $fieldName: $e');
+      return 0.0;
+    }
+  }
+
+  /// Sanitiza un string, removiendo espacios extras y caracteres no deseados
+  static String? _sanitizeString(dynamic value) {
+    if (value == null) return null;
+    String str = value.toString().trim();
+    return str.isEmpty ? null : str;
   }
 
   Map<String, dynamic> toJson() {
@@ -97,6 +144,33 @@ class Loan {
       default:
         return 'Desconocido';
     }
+  }
+}
+
+class PaymentMethod {
+  static const String cash = 'cash';
+  static const String bbva = 'bbva';
+  static const String interbank = 'interbank';
+  static const String bcn = 'bcn';
+
+  static String getDisplayName(String? method) {
+    switch (method?.toLowerCase()) {
+      case cash:
+        return 'Efectivo';
+      case bbva:
+        return 'BBVA - PLIN';
+      case interbank:
+        return 'INTERBANK - PLIN';
+      case bcn:
+        return 'Transferencia - Banco de la Nación';
+      default:
+        return 'No especificado';
+    }
+  }
+
+  static bool isValid(String? method) {
+    if (method == null) return false;
+    return [cash, bbva, interbank, bcn].contains(method.toLowerCase());
   }
 }
 
@@ -153,5 +227,10 @@ class Installment {
       default:
         return 'Pendiente';
     }
+  }
+
+  // Método para obtener el nombre del método de pago
+  String getPaymentMethodText() {
+    return PaymentMethod.getDisplayName(paymentMethod);
   }
 }

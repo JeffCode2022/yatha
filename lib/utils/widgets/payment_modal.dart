@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../src/providers/payment_provider.dart';
 import '../theme/app_theme.dart';
 import '../../src/services/api_service.dart';
+import '../../src/models/loan.dart';
 
 class PaymentModal extends StatefulWidget {
   final dynamic payment;
@@ -26,7 +27,7 @@ class PaymentModal extends StatefulWidget {
 
 class _PaymentModalState extends State<PaymentModal> {
   final _formKey = GlobalKey<FormState>();
-  String _selectedPaymentMethod = 'cash';
+  String _selectedPaymentMethod = PaymentMethod.cash;
   final _interestController = TextEditingController();
   final _capitalController = TextEditingController();
   final _amountController = TextEditingController();
@@ -48,9 +49,12 @@ class _PaymentModalState extends State<PaymentModal> {
       _capitalController.text = (totalAmount * 0.6).toStringAsFixed(2);
       _interestController.text = (totalAmount * 0.4).toStringAsFixed(2);
     } else {
-      // Para préstamos diarios, solo un monto total
-      _amountController.text =
-          (widget.payment['payment_amount'] ?? 0.0).toStringAsFixed(2);
+      // Para préstamos diarios
+      final expectedAmount = widget.payment['payment_amount'] ?? 0.0;
+      _amountController.text = expectedAmount.toStringAsFixed(2);
+      // Inicializar los controladores para pago mixto con valores por defecto
+      _cashAmountController.text = expectedAmount.toStringAsFixed(2);
+      _transferAmountController.text = '0.00';
     }
 
     // Verificar si la fecha de pago es hoy
@@ -94,20 +98,49 @@ class _PaymentModalState extends State<PaymentModal> {
     });
 
     try {
-      Map<String, dynamic> paymentData;
+      final expectedAmount = widget.payment['payment_amount'] ?? 0.0;
+      double totalAmount = 0.0;
+
+      Map<String, dynamic> paymentData = {
+        'jsonrpc': '2.0',
+        'params': {
+          'id': widget.payment['id'],
+          'payment_met': _selectedPaymentMethod,
+        }
+      };
 
       if (_selectedPaymentMethod == 'mixto') {
-        paymentData = {
-          'payment_met': 'mixto',
-          'paid_amount_cash': double.parse(_cashAmountController.text),
-          'paid_amount_transferencia':
-              double.parse(_transferAmountController.text),
-        };
+        final cashAmount = double.tryParse(_cashAmountController.text) ?? 0.0;
+        final transferAmount =
+            double.tryParse(_transferAmountController.text) ?? 0.0;
+        totalAmount = cashAmount + transferAmount;
+
+        if ((totalAmount - expectedAmount).abs() > 0.01) {
+          throw Exception('El monto total no coincide con el monto esperado');
+        }
+
+        paymentData['params'].addAll({
+          'paid_amount_cash': cashAmount,
+          'paid_amount_transferencia': transferAmount,
+          'payment_met': 'mixto'
+        });
       } else {
-        paymentData = {
-          'payment_met': _selectedPaymentMethod,
-          'paid_amount': double.parse(_amountController.text),
-        };
+        totalAmount = double.tryParse(_amountController.text) ?? 0.0;
+
+        if ((totalAmount - expectedAmount).abs() > 0.01) {
+          throw Exception('El monto no coincide con el monto esperado');
+        }
+
+        paymentData['params'].addAll({
+          'paid_amount': totalAmount,
+          'payment_met': _selectedPaymentMethod
+        });
+      }
+
+      // Validar que el método de pago sea válido
+      if (!PaymentMethod.isValid(_selectedPaymentMethod) &&
+          _selectedPaymentMethod != 'mixto') {
+        throw Exception('Método de pago no válido');
       }
 
       final resultado = await _apiService.registerPayment(
@@ -116,25 +149,29 @@ class _PaymentModalState extends State<PaymentModal> {
         paymentData,
       );
 
-      if (resultado.containsKey('error')) {
-        if (mounted) {
+      if (mounted) {
+        if (resultado.containsKey('error')) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(resultado['error'] ?? 'Error al registrar pago'),
               backgroundColor: Colors.red,
             ),
           );
-        }
-      } else {
-        if (mounted) {
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pago registrado con éxito'),
+            SnackBar(
+              content: Text(
+                  'Pago registrado con éxito por ${PaymentMethod.getDisplayName(_selectedPaymentMethod)}'),
               backgroundColor: Colors.green,
             ),
           );
-          widget.onPaymentComplete();
-          Navigator.pop(context);
+
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          if (mounted) {
+            Navigator.pop(context);
+            widget.onPaymentComplete();
+          }
         }
       }
     } catch (e) {
@@ -151,6 +188,29 @@ class _PaymentModalState extends State<PaymentModal> {
         setState(() {
           _isProcessing = false;
         });
+      }
+    }
+  }
+
+  void _updateMixedPaymentAmounts(String value, bool isCash) {
+    final expectedAmount = widget.payment['payment_amount'] ?? 0.0;
+    final enteredAmount = double.tryParse(value) ?? 0.0;
+
+    if (isCash) {
+      if (enteredAmount <= expectedAmount) {
+        final remainingAmount = expectedAmount - enteredAmount;
+        _transferAmountController.text = remainingAmount.toStringAsFixed(2);
+      } else {
+        _cashAmountController.text = expectedAmount.toStringAsFixed(2);
+        _transferAmountController.text = '0.00';
+      }
+    } else {
+      if (enteredAmount <= expectedAmount) {
+        final remainingAmount = expectedAmount - enteredAmount;
+        _cashAmountController.text = remainingAmount.toStringAsFixed(2);
+      } else {
+        _transferAmountController.text = expectedAmount.toStringAsFixed(2);
+        _cashAmountController.text = '0.00';
       }
     }
   }
@@ -354,36 +414,95 @@ class _PaymentModalState extends State<PaymentModal> {
           'Método de pago',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Efectivo'),
-                value: 'cash',
-                groupValue: _selectedPaymentMethod,
-                onChanged: (value) =>
-                    setState(() => _selectedPaymentMethod = value!),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 100,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildPaymentMethodCard(
+                title: 'Efectivo',
+                icon: Icons.payments_outlined,
+                value: PaymentMethod.cash,
+                color: Colors.green,
               ),
-            ),
-            Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Transferencia'),
-                value: 'transfer',
-                groupValue: _selectedPaymentMethod,
-                onChanged: (value) =>
-                    setState(() => _selectedPaymentMethod = value!),
+              _buildPaymentMethodCard(
+                title: 'BBVA - PLIN',
+                icon: Icons.account_balance,
+                value: PaymentMethod.bbva,
+                color: Colors.blue,
               ),
-            ),
-          ],
-        ),
-        RadioListTile<String>(
-          title: const Text('Mixto (Efectivo + Transferencia)'),
-          value: 'mixto',
-          groupValue: _selectedPaymentMethod,
-          onChanged: (value) => setState(() => _selectedPaymentMethod = value!),
+              _buildPaymentMethodCard(
+                title: 'INTERBANK - PLIN',
+                icon: Icons.account_balance,
+                value: PaymentMethod.interbank,
+                color: Colors.orange,
+              ),
+              _buildPaymentMethodCard(
+                title: 'Banco de la Nación',
+                icon: Icons.account_balance,
+                value: PaymentMethod.bcn,
+                color: Colors.red,
+              ),
+              _buildPaymentMethodCard(
+                title: 'Mixto',
+                icon: Icons.compare_arrows,
+                value: 'mixto',
+                color: Colors.purple,
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPaymentMethodCard({
+    required String title,
+    required IconData icon,
+    required String value,
+    required Color color,
+  }) {
+    final isSelected = _selectedPaymentMethod == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: InkWell(
+        onTap: () => setState(() => _selectedPaymentMethod = value),
+        child: Container(
+          width: 120,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.1) : Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? color : Colors.grey[300]!,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? color : Colors.grey,
+                size: 32,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isSelected ? color : Colors.grey[600],
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 12,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -543,6 +662,8 @@ class _PaymentModalState extends State<PaymentModal> {
   }
 
   Widget _buildDailyPaymentFields() {
+    final expectedAmount = widget.payment['payment_amount'] ?? 0.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -551,9 +672,161 @@ class _PaymentModalState extends State<PaymentModal> {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
+        if (_selectedPaymentMethod == 'mixto') ...[
+          TextFormField(
+            controller: _cashAmountController,
+            decoration: InputDecoration(
+              labelText: 'Monto en efectivo',
+              prefixText: 'S/. ',
+              border: const OutlineInputBorder(),
+              helperText:
+                  'Monto total esperado: S/. ${expectedAmount.toStringAsFixed(2)}',
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+            ],
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Ingrese el monto en efectivo';
+              }
+              final cashAmount = double.tryParse(value);
+              if (cashAmount == null) {
+                return 'Ingrese un monto válido';
+              }
+              if (cashAmount < 0) {
+                return 'El monto no puede ser negativo';
+              }
+              if (cashAmount > expectedAmount) {
+                return 'El monto no puede ser mayor a S/. ${expectedAmount.toStringAsFixed(2)}';
+              }
+              return null;
+            },
+            onChanged: (value) => _updateMixedPaymentAmounts(value, true),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _transferAmountController,
+            decoration: const InputDecoration(
+              labelText: 'Monto por transferencia',
+              prefixText: 'S/. ',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+            ],
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Ingrese el monto por transferencia';
+              }
+              final transferAmount = double.tryParse(value);
+              if (transferAmount == null) {
+                return 'Ingrese un monto válido';
+              }
+              if (transferAmount < 0) {
+                return 'El monto no puede ser negativo';
+              }
+              if (transferAmount > expectedAmount) {
+                return 'El monto no puede ser mayor a S/. ${expectedAmount.toStringAsFixed(2)}';
+              }
 
-        // Campo de monto total
-        _buildPaymentFields(),
+              // Validar que la suma de ambos montos sea igual al monto esperado
+              final cashAmount =
+                  double.tryParse(_cashAmountController.text) ?? 0.0;
+              final totalAmount = cashAmount + transferAmount;
+              if ((totalAmount - expectedAmount).abs() > 0.01) {
+                return 'La suma debe ser S/. ${expectedAmount.toStringAsFixed(2)}';
+              }
+              return null;
+            },
+            onChanged: (value) => _updateMixedPaymentAmounts(value, false),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Efectivo:',
+                        style: TextStyle(color: Colors.grey)),
+                    Text(
+                      'S/. ${(double.tryParse(_cashAmountController.text) ?? 0.0).toStringAsFixed(2)}',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Transferencia:',
+                        style: TextStyle(color: Colors.grey)),
+                    Text(
+                      'S/. ${(double.tryParse(_transferAmountController.text) ?? 0.0).toStringAsFixed(2)}',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'S/. ${((double.tryParse(_cashAmountController.text) ?? 0.0) + (double.tryParse(_transferAmountController.text) ?? 0.0)).toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppTheme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ] else
+          TextFormField(
+            controller: _amountController,
+            decoration: InputDecoration(
+              labelText: 'Monto a pagar',
+              prefixText: 'S/. ',
+              border: const OutlineInputBorder(),
+              helperText:
+                  'Monto esperado: S/. ${expectedAmount.toStringAsFixed(2)}',
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+            ],
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Ingrese el monto a pagar';
+              }
+              final amount = double.tryParse(value);
+              if (amount == null) {
+                return 'Ingrese un monto válido';
+              }
+              if (amount <= 0) {
+                return 'El monto debe ser mayor a cero';
+              }
+              if ((amount - expectedAmount).abs() > 0.01) {
+                return 'El monto debe ser S/. ${expectedAmount.toStringAsFixed(2)}';
+              }
+              return null;
+            },
+          ),
       ],
     );
   }

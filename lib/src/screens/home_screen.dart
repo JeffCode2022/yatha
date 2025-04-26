@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:get/get.dart';
 import 'package:yatha_app/src/screens/gestor/new_kpi_screen.dart';
 import 'package:yatha_app/src/screens/supervisor/supervisor_kpi_screen.dart';
 import 'package:yatha_app/src/screens/supervisor/supervisor_map_screen.dart';
@@ -27,17 +28,11 @@ class HomeScreen extends StatefulWidget {
     // Limpiar datos existentes
     kpiProvider.changeUser(null);
 
-    // Navegar al HomeScreen con el índice de KPIs
-    await Navigator.pushAndRemoveUntil(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const HomeScreen(initialIndex: 2),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-      (route) => false,
+    // Usar Get.offAll para una navegación más segura
+    await Get.offAll(
+      () => const HomeScreen(initialIndex: 2),
+      transition: Transition.fade,
+      duration: const Duration(milliseconds: 300),
     );
   }
 
@@ -46,26 +41,67 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late int _selectedIndex;
+  int _selectedIndex = 0;
   PageController? _pageController;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex ?? 0;
     _pageController = PageController(initialPage: _selectedIndex);
+  }
 
-    // Cargar datos iniciales después de que el widget esté completamente construido
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isLoading) {
+      _loadInitialData();
+    }
+  }
+
+  Future<void> _loadInitialData() async {
+    if (!mounted) return;
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final isSupervisor = authProvider.user?.role == 'supervisor';
+      final maxIndex = isSupervisor ? 2 : 3;
+
+      // Ajustar el índice si es necesario
+      if (_selectedIndex > maxIndex) {
+        _selectedIndex = maxIndex;
+        _pageController?.jumpToPage(_selectedIndex);
+      }
+
       await _cleanAndInitializeData();
-    });
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading initial data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        Get.snackbar(
+          'Error',
+          'Error al cargar los datos. Por favor, intente nuevamente.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    }
   }
 
   @override
   void dispose() {
     _pageController?.dispose();
-    _pageController = null;
     super.dispose();
   }
 
@@ -82,10 +118,12 @@ class _HomeScreenState extends State<HomeScreen> {
           Provider.of<ClienteProvider>(context, listen: false);
 
       // Limpiar datos existentes
-      kpiProvider.changeUser(null);
-      loanProvider.clearData();
-      paymentProvider.clearData();
-      clienteProvider.clearData();
+      await Future.wait([
+        Future(() => kpiProvider.changeUser(null)),
+        Future(() => loanProvider.clearData()),
+        Future(() => paymentProvider.clearData()),
+        Future(() => clienteProvider.clearData()),
+      ]);
 
       // Cargar datos nuevos si hay un usuario
       if (authProvider.user?.uid != null) {
@@ -96,30 +134,29 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Error al cargar los datos. Por favor, intente nuevamente.'),
-          ),
-        );
-      }
+      debugPrint('Error cleaning and initializing data: $e');
+      rethrow;
     }
   }
 
   void _onItemTapped(int index) {
     if (!mounted || _pageController == null) return;
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isSupervisor = authProvider.user?.role == 'supervisor';
+    final maxIndex = isSupervisor ? 2 : 3;
+
+    if (index < 0 || index > maxIndex) return;
+
     setState(() {
       _selectedIndex = index;
-      _pageController?.animateToPage(
+      _pageController!.animateToPage(
         index,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     });
 
-    // Recargar datos si cambiamos a la pantalla de KPIs
     if (index == 0) {
       _cleanAndInitializeData();
     }
@@ -128,14 +165,43 @@ class _HomeScreenState extends State<HomeScreen> {
   void _handlePageChange(int index) {
     if (!mounted) return;
 
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isSupervisor = authProvider.user?.role == 'supervisor';
+    final maxIndex = isSupervisor ? 2 : 3;
+
+    // Validar el índice antes de actualizar
+    if (index < 0 || index > maxIndex) return;
+
     setState(() {
       _selectedIndex = index;
     });
 
-    // Recargar datos si cambiamos a la pantalla de KPIs
+    // Recargar datos si cambiamos a la pantalla principal
     if (index == 0) {
       _cleanAndInitializeData();
     }
+  }
+
+  void _handleDrawerNavigation(int index) {
+    if (!mounted) return;
+
+    // Cerrar el drawer
+    Get.back();
+
+    // Esperar a que el drawer se cierre antes de navegar
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+
+      setState(() {
+        _selectedIndex = index;
+        _pageController!.jumpToPage(index);
+      });
+
+      // Recargar datos si es necesario
+      if (index == 0) {
+        _cleanAndInitializeData();
+      }
+    });
   }
 
   String _getTitle(bool isSupervisor) {
@@ -144,10 +210,8 @@ class _HomeScreenState extends State<HomeScreen> {
         case 0:
           return 'Dashboard';
         case 1:
-          return 'Gestores';
-        case 2:
           return 'Mapa';
-        case 3:
+        case 2:
           return 'Perfil';
         default:
           return 'Yatha App';
@@ -172,7 +236,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (isSupervisor) {
       return const [
         SupervisorKpiScreen(), // Dashboard con KPIs de gestores
-        SupervisorKpiScreen(), // Lista de gestores
         SupervisorMapScreen(), // Mapa de gestores
         ProfileScreen(), // Perfil del supervisor
       ];
@@ -188,10 +251,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_pageController == null) return const SizedBox.shrink();
-
     final authProvider = Provider.of<AuthProvider>(context);
     final isSupervisor = authProvider.user?.role == 'supervisor';
+
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return BaseScreen(
       title: _getTitle(isSupervisor),

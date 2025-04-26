@@ -51,38 +51,29 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+
+    // Definir todas las rutas posibles desde el inicio
     final List<GetPage> routes = [
       GetPage(name: AppRoutes.login, page: () => const LoginScreen()),
+      GetPage(name: AppRoutes.home, page: () => const HomeScreen()),
+      GetPage(name: AppRoutes.gestorLoans, page: () => const LoansScreen()),
+      GetPage(name: AppRoutes.gestorMap, page: () => const MapScreen()),
+      GetPage(name: AppRoutes.gestorKpis, page: () => const NewKpiScreen()),
+      GetPage(name: AppRoutes.gestorProfile, page: () => const ProfileScreen()),
+      GetPage(
+        name: AppRoutes.loanDetail,
+        page: () => const LoanDetailScreen(),
+        transition: Transition.rightToLeft,
+      ),
+      GetPage(
+        name: AppRoutes.supervisorKpis,
+        page: () => const SupervisorKpiScreen(),
+      ),
+      GetPage(
+        name: AppRoutes.supervisorMap,
+        page: () => const SupervisorMapScreen(),
+      ),
     ];
-
-    if (authProvider.isAuthenticated) {
-      if (authProvider.isSupervisor) {
-        // Rutas específicas para supervisor
-        routes.addAll([
-          GetPage(name: AppRoutes.home, page: () => const HomeScreen()),
-          GetPage(
-              name: AppRoutes.supervisorKpis,
-              page: () => const SupervisorKpiScreen()),
-          GetPage(
-              name: AppRoutes.supervisorMap,
-              page: () => const SupervisorMapScreen()),
-          GetPage(
-              name: AppRoutes.gestorProfile, page: () => const ProfileScreen()),
-        ]);
-      } else if (authProvider.isGestor) {
-        // Rutas específicas para gestor
-        routes.addAll([
-          GetPage(name: AppRoutes.home, page: () => const HomeScreen()),
-          GetPage(name: AppRoutes.gestorLoans, page: () => const LoansScreen()),
-          GetPage(name: AppRoutes.gestorMap, page: () => const MapScreen()),
-          GetPage(name: AppRoutes.gestorKpis, page: () => const NewKpiScreen()),
-          GetPage(
-              name: AppRoutes.gestorProfile, page: () => const ProfileScreen()),
-          GetPage(
-              name: AppRoutes.loanDetail, page: () => const LoanDetailScreen()),
-        ]);
-      }
-    }
 
     return GetMaterialApp(
       title: 'Yatha App',
@@ -90,6 +81,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: initialRoute,
       getPages: routes,
+      defaultTransition: Transition.fadeIn,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

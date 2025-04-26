@@ -11,14 +11,17 @@ class KpiProvider extends ChangeNotifier {
   Map<String, dynamic> _totals = {
     'expected': 0.0,
     'paid': 0.0,
-    'completionPercentage': 0.0
+    'completionPercentage': 0.0,
+    'pendingAmount': 0.0,
+    'totalLoans': 0
   };
   Map<String, int> _statusCounts = {
     'pending': 0,
     'late': 0,
     'completed': 0,
     'cancelled': 0,
-    'partial': 0
+    'partial': 0,
+    'ontime': 0
   };
   bool _isMonthly = false;
   String _currentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -37,15 +40,17 @@ class KpiProvider extends ChangeNotifier {
   // Getters calculados
   double get totalExpected => _totals['expected'] ?? 0.0;
   double get totalPaid => _totals['paid'] ?? 0.0;
+  double get pendingAmount => _totals['pendingAmount'] ?? 0.0;
+  int get totalLoans => _totals['totalLoans'] ?? 0;
   double get completionPercentage => _totals['completionPercentage'] ?? 0.0;
   double get progressPercentage => completionPercentage / 100;
 
   // Métodos para obtener estadísticas de pagos
   int getPendingPaymentsCount() => _statusCounts['pending'] ?? 0;
-  int getOnTimePaymentsCount() => _statusCounts['completed'] ?? 0;
+  int getOnTimePaymentsCount() => _statusCounts['ontime'] ?? 0;
   int getLatePaymentsCount() => _statusCounts['late'] ?? 0;
   int getTotalPaymentsCount() {
-    return (_statusCounts['completed'] ?? 0) +
+    return (_statusCounts['ontime'] ?? 0) +
         (_statusCounts['late'] ?? 0) +
         (_statusCounts['pending'] ?? 0);
   }
@@ -104,10 +109,51 @@ class KpiProvider extends ChangeNotifier {
       if (response['success']) {
         final data = response['data'];
         _payments = List<Map<String, dynamic>>.from(data['payments']);
+
+        // Procesar los pagos y actualizar los contadores
+        int ontimeCount = 0;
+        for (var payment in _payments) {
+          if (payment['timeStatus'] == 'ontime' &&
+              (payment['status'] == 'paid' ||
+                  payment['status'] == 'completed')) {
+            ontimeCount++;
+          }
+        }
+
         _totals = Map<String, dynamic>.from(data['totals']);
         _statusCounts = Map<String, int>.from(data['statusCounts']);
+        _statusCounts['ontime'] = ontimeCount;
         _currentDate = data['date'];
         _error = null;
+
+        // Calcular totales adicionales
+        double totalPendingAmount = 0.0;
+        int pendingLoans = 0;
+        Set<dynamic> processedLoans = {};
+
+        for (var payment in _payments) {
+          if (payment['status'] == 'pending' || payment['status'] == 'late') {
+            totalPendingAmount += (payment['expectedAmount'] ?? 0.0) -
+                (payment['paidAmount'] ?? 0.0);
+            if (payment['loanId'] != null &&
+                !processedLoans.contains(payment['loanId'])) {
+              pendingLoans++;
+              processedLoans.add(payment['loanId']);
+            }
+          }
+        }
+
+        _totals['pendingAmount'] = totalPendingAmount;
+        _totals['totalLoans'] = pendingLoans;
+
+        print('KpiProvider - Datos actualizados:');
+        print('KpiProvider - Total esperado: ${_totals['expected']}');
+        print('KpiProvider - Total pagado: ${_totals['paid']}');
+        print('KpiProvider - Monto pendiente: ${_totals['pendingAmount']}');
+        print('KpiProvider - Préstamos pendientes: ${_totals['totalLoans']}');
+        print('KpiProvider - Pagos a tiempo: ${_statusCounts['ontime']}');
+        print('KpiProvider - Pagos tardíos: ${_statusCounts['late']}');
+        print('KpiProvider - Pagos pendientes: ${_statusCounts['pending']}');
       } else {
         _error = response['error'];
         _resetData();
@@ -123,14 +169,22 @@ class KpiProvider extends ChangeNotifier {
 
   void _resetData() {
     _payments = [];
-    _totals = {'expected': 0.0, 'paid': 0.0, 'completionPercentage': 0.0};
+    _totals = {
+      'expected': 0.0,
+      'paid': 0.0,
+      'completionPercentage': 0.0,
+      'pendingAmount': 0.0,
+      'totalLoans': 0
+    };
     _statusCounts = {
       'pending': 0,
       'late': 0,
       'completed': 0,
       'cancelled': 0,
-      'partial': 0
+      'partial': 0,
+      'ontime': 0
     };
+    _processedLoans.clear();
     _safeNotifyListeners();
   }
 
@@ -239,4 +293,26 @@ class KpiProvider extends ChangeNotifier {
         ? payment['partnerId'][1]
         : 'Cliente no especificado';
   }
+
+  void _updateTotals() {
+    double totalPendingAmount = 0.0;
+    int pendingLoans = 0;
+
+    for (var payment in _payments) {
+      if (payment['status'] == 'pending' || payment['status'] == 'late') {
+        totalPendingAmount +=
+            (payment['expectedAmount'] ?? 0.0) - (payment['paidAmount'] ?? 0.0);
+        if (!_processedLoans.contains(payment['loanId'])) {
+          pendingLoans++;
+          _processedLoans.add(payment['loanId']);
+        }
+      }
+    }
+
+    _totals['pendingAmount'] = totalPendingAmount;
+    _totals['totalLoans'] = pendingLoans;
+    _processedLoans.clear();
+  }
+
+  final Set<dynamic> _processedLoans = {};
 }

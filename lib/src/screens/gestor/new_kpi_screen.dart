@@ -5,7 +5,6 @@ import 'dart:ui';
 import 'package:yatha_app/src/providers/auth_provider.dart';
 import 'package:yatha_app/src/providers/kpi_provider.dart';
 import 'package:yatha_app/utils/theme/app_theme.dart';
-import 'package:yatha_app/utils/widgets/glass_container.dart';
 import 'package:yatha_app/utils/widgets/progress_indicator_widget.dart';
 
 class NewKpiScreen extends StatefulWidget {
@@ -22,25 +21,33 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
   String? _currentUserId;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
-    
+
     // Configurar animaciones
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    
+
     _fadeAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeIn,
     );
     
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutBack,
+      ),
+    );
+
     _animationController.forward();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
     });
@@ -152,48 +159,76 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
     return Consumer<KpiProvider>(
       builder: (context, kpiProvider, _) {
         return Scaffold(
-          body: Container(
-            decoration: BoxDecoration(
-              color: AppTheme.colorScheme.primary.withOpacity(0.8),
-            ),
-            child: SafeArea(
-              child: RefreshIndicator(
-                onRefresh: _loadKpis,
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            title: Text(
+              'KPI Diario',
+              style: TextStyle(
                 color: AppTheme.colorScheme.primary,
-                child: Stack(
-                  children: [
-                    if (kpiProvider.error != null)
-                      _buildErrorState(kpiProvider.error!)
-                    else
-                      FadeTransition(
-                        opacity: _fadeAnimation,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  Icons.calendar_month_outlined,
+                  color: AppTheme.colorScheme.primary,
+                ),
+                onPressed: () => _selectDate(context),
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _loadKpis,
+              color: AppTheme.colorScheme.primary,
+              child: Stack(
+                children: [
+                  if (kpiProvider.error != null)
+                    _buildErrorState(kpiProvider.error!)
+                  else
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: ScaleTransition(
+                        scale: _scaleAnimation,
                         child: SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildDateSelector(),
-                              const SizedBox(height: 24),
+                              _buildDateDisplay(),
+                              const SizedBox(height: 20),
                               _buildProgressCard(kpiProvider),
-                              const SizedBox(height: 24),
+                              const SizedBox(height: 20),
                               _buildPaymentsList(kpiProvider),
                               const SizedBox(height: 80), // Espacio adicional al final
                             ],
                           ),
                         ),
                       ),
-                    if (kpiProvider.isLoading)
-                      _buildLoadingOverlay(),
-                  ],
-                ),
+                    ),
+                  if (kpiProvider.isLoading) _buildLoadingOverlay(),
+                ],
               ),
             ),
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: _loadKpis,
-            backgroundColor: AppTheme.colorScheme.primary,
-            child: const Icon(Icons.refresh, color: Colors.white),
+          floatingActionButton: AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _scaleAnimation.value,
+                child: FloatingActionButton(
+                  onPressed: _loadKpis,
+                  backgroundColor: AppTheme.colorScheme.primary,
+                  elevation: 2,
+                  child: const Icon(Icons.refresh, color: Colors.white),
+                ),
+              );
+            },
           ),
         );
       },
@@ -202,35 +237,40 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
 
   Widget _buildLoadingOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.3),
+      color: Colors.black.withOpacity(0.1),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
         child: Center(
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  spreadRadius: 5,
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  spreadRadius: 0,
                 ),
               ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(
-                  color: AppTheme.colorScheme.primary,
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(
+                    color: AppTheme.colorScheme.primary,
+                    strokeWidth: 3,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
                   'Cargando datos...',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -243,154 +283,108 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
 
   Widget _buildErrorState(String error) {
     return Center(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            margin: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.5),
-                width: 1.5,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                shape: BoxShape.circle,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
+              child: Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.red[50],
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Error al cargar datos',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red[700],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    error,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.red[700],
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed: _loadKpis,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text(
-                    'Reintentar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 20),
+            Text(
+              'Error al cargar datos',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[700],
+              ),
             ),
-          ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                error,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.red[700],
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadKpis,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text(
+                'Reintentar',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDateSelector() {
-    return GestureDetector(
-      onTap: () => _selectDate(context),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.2),
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.calendar_today, color: Colors.white),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Fecha seleccionada',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 12,
-                      ),
-                    ),
-                    Text(
-                      DateFormat('dd/MM/yyyy').format(_selectedDate),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.arrow_drop_down,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+  Widget _buildDateDisplay() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.colorScheme.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.colorScheme.primary.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.calendar_today,
+            size: 16,
+            color: AppTheme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            DateFormat('dd/MM/yyyy').format(_selectedDate),
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              color: AppTheme.colorScheme.primary,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -400,177 +394,184 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
         .toStringAsFixed(0);
     final progressValue = provider.totalPaid / provider.totalExpected;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.8),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.5),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                spreadRadius: 5,
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.insights,
+                      color: AppTheme.colorScheme.primary,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   const Text(
                     'Progreso del día',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _getEfficiencyColor(double.parse(efficiency))
-                          .withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _getEfficiencyColor(double.parse(efficiency))
-                            .withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _getEfficiencyIcon(double.parse(efficiency)),
-                          size: 16,
-                          color: _getEfficiencyColor(double.parse(efficiency)),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Eficiencia: $efficiency%',
-                          style: TextStyle(
-                            color: _getEfficiencyColor(double.parse(efficiency)),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(20),
+                  color: _getEfficiencyColor(double.parse(efficiency))
+                      .withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
+                    color: _getEfficiencyColor(double.parse(efficiency))
+                        .withOpacity(0.3),
                   ),
                 ),
-                child: Column(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Icon(
+                      _getEfficiencyIcon(double.parse(efficiency)),
+                      size: 14,
+                      color: _getEfficiencyColor(double.parse(efficiency)),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Eficiencia: $efficiency%',
+                      style: TextStyle(
+                        color: _getEfficiencyColor(double.parse(efficiency)),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey[100]!,
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Text(
+                          'S/.${provider.totalPaid.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Row(
                           children: [
-                            Text(
-                              'S/.${provider.totalPaid.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 28,
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: _getProgressColor(progressValue),
+                                shape: BoxShape.circle,
                               ),
                             ),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: _getProgressColor(progressValue),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Text(
-                                  'Recaudado',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Container(
-                          height: 50,
-                          width: 1,
-                          color: Colors.grey.withOpacity(0.3),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
+                            const SizedBox(width: 4),
                             Text(
-                              'S/.${provider.totalExpected.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 28,
+                              'Recaudado',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
                               ),
-                            ),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[400],
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                const Text(
-                                  'Meta',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    ProgressIndicatorWidget(
-                      value: progressValue.clamp(0.0, 1.0),
-                      height: 10,
-                      color: _getProgressColor(progressValue),
-                      backgroundColor: Colors.grey[200]!,
+                    Container(
+                      height: 40,
+                      width: 1,
+                      color: Colors.grey[300],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'S/.${provider.totalExpected.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[400],
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Meta',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
-              _buildPaymentStatusIndicators(provider),
-            ],
+                const SizedBox(height: 16),
+                ProgressIndicatorWidget(
+                  value: progressValue.clamp(0.0, 1.0),
+                  height: 8,
+                  color: _getProgressColor(progressValue),
+                  backgroundColor: Colors.grey[200]!,
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(height: 16),
+          _buildPaymentStatusIndicators(provider),
+        ],
       ),
     );
   }
@@ -602,7 +603,7 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
       children: [
         _buildStatusIndicator(
           'A tiempo',
-          provider.statusCounts['completed'] ?? 0,
+          provider.statusCounts['ontime'] ?? 0,
           Colors.green,
           Icons.check_circle_outline,
         ),
@@ -629,27 +630,27 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
     IconData icon,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 16),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             count.toString(),
             style: TextStyle(
-              fontSize: 22,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -676,19 +677,35 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 8.0),
-          child: Text(
-            'Desglose de Pagos',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white.withOpacity(0.9),
-            ),
+          padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.receipt_long,
+                  color: AppTheme.colorScheme.primary,
+                  size: 14,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Desglose de Pagos',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
         _buildSearchBar(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -701,251 +718,234 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
   }
 
   Widget _buildEmptyState() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.5),
-              width: 1.5,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.grey[200]!,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.check_circle_outline,
+              size: 32,
+              color: Colors.blue[400],
             ),
           ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check_circle_outline,
-                  size: 48,
-                  color: Colors.blue[400],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Sin pagos para mostrar',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'No hay pagos registrados para la fecha seleccionada',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.blue[600],
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                onPressed: () => _selectDate(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blue[700],
-                  side: BorderSide(color: Colors.blue[300]!),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: Icon(Icons.calendar_today, size: 18, color: Colors.blue[700]),
-                label: const Text(
-                  'Cambiar fecha',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 16),
+          Text(
+            'Sin pagos para mostrar',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[700],
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            'No hay pagos registrados para la fecha seleccionada',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.blue[600],
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => _selectDate(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.blue[700],
+              side: BorderSide(color: Colors.blue[300]!),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            icon: Icon(Icons.calendar_today, size: 14, color: Colors.blue[700]),
+            label: Text(
+              'Cambiar fecha',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildSearchBar() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1.5,
-            ),
-          ),
-          child: TextField(
-            controller: _searchController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Buscar pago...',
-              prefixIcon: const Icon(Icons.search, color: Colors.white70),
-              border: InputBorder.none,
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-            ),
-            onChanged: _filterPayments,
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.grey[300]!,
         ),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(color: Colors.black87, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: 'Buscar pago...',
+          prefixIcon: Icon(Icons.search, color: Colors.grey[600], size: 16),
+          border: InputBorder.none,
+          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        ),
+        onChanged: _filterPayments,
       ),
     );
   }
 
   Widget _buildPaymentCard(Map<dynamic, dynamic> payment, int index) {
-    final paymentStatus = payment['status'] ?? 'pending';
-    final statusInfo =
-        Provider.of<KpiProvider>(context).getPaymentStatusInfo(paymentStatus);
+    final paymentStatus = payment['timeStatus'] ?? 'pending';
+    final statusInfo = _getTimeStatusInfo(paymentStatus);
     final clientName = Provider.of<KpiProvider>(context).getClientName(payment);
     final paymentDetails =
         Provider.of<KpiProvider>(context).getPaymentDetails(payment);
 
     // Animación de entrada escalonada
-    final delay = Duration(milliseconds: 100 * index);
-    
+    final delay = Duration(milliseconds: 50 * index);
+
     return FutureBuilder(
       future: Future.delayed(delay),
       builder: (context, snapshot) {
         return AnimatedOpacity(
           opacity: snapshot.connectionState == ConnectionState.done ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 500),
-          child: AnimatedPadding(
-            padding: snapshot.connectionState == ConnectionState.done 
-              ? const EdgeInsets.only(bottom: 12, left: 0, right: 0) 
-              : const EdgeInsets.only(bottom: 12, left: 20, right: 0),
-            duration: const Duration(milliseconds: 500),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        spreadRadius: 0,
+          duration: const Duration(milliseconds: 300),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey[200]!,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 4,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              title: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: statusInfo['color'].withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: statusInfo['color'].withOpacity(0.3),
                       ),
-                    ],
-                  ),
-                  child: ExpansionTile(
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    title: Row(
-                      children: [
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: statusInfo['color'].withOpacity(0.1),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: statusInfo['color'].withOpacity(0.3),
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              clientName.isNotEmpty ? clientName[0].toUpperCase() : '?',
-                              style: TextStyle(
-                                color: statusInfo['color'],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        clientName.isNotEmpty ? clientName[0].toUpperCase() : '?',
+                        style: TextStyle(
+                          color: statusInfo['color'],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                clientName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                'Pago #${payment['name'] ?? 'Sin número'}',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          clientName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Pago #${payment['name'] ?? 'Sin número'}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
                           ),
                         ),
                       ],
                     ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: statusInfo['color'].withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: statusInfo['color'].withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(statusInfo['icon'], size: 16, color: statusInfo['color']),
-                          const SizedBox(width: 4),
-                          Text(
-                            statusInfo['text'],
-                            style: TextStyle(
-                              color: statusInfo['color'],
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                  ),
+                ],
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusInfo['color'].withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: statusInfo['color'].withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusInfo['icon'], size: 12, color: statusInfo['color']),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusInfo['text'],
+                      style: TextStyle(
+                        color: statusInfo['color'],
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
                       ),
                     ),
+                  ],
+                ),
+              ),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                    ),
+                  ),
+                  child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(16),
-                            bottomRight: Radius.circular(16),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            ...paymentDetails.map((detail) => _buildPaymentDetail(
-                                  detail['label'],
-                                  detail['value'].toString().startsWith('\$')
-                                      ? detail['value']
-                                          .toString()
-                                          .replaceFirst('\$', 'S/.')
-                                      : detail['value'],
-                                )),
-                          ],
-                        ),
-                      ),
+                      ...paymentDetails.map((detail) => _buildPaymentDetail(
+                            detail['label'],
+                            detail['value'].toString().startsWith('\$')
+                                ? detail['value'].toString().replaceFirst('\$', 'S/.')
+                                : detail['value'],
+                          )),
                     ],
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         );
@@ -955,7 +955,7 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
 
   Widget _buildPaymentDetail(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -963,18 +963,42 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
             label,
             style: TextStyle(
               color: Colors.grey[600],
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
           Text(
             value,
             style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
             ),
           ),
         ],
       ),
     );
+  }
+
+  Map<String, dynamic> _getTimeStatusInfo(String status) {
+    switch (status.toLowerCase()) {
+      case 'ontime':
+        return {
+          'color': Colors.green,
+          'icon': Icons.check_circle_outline,
+          'text': 'A tiempo'
+        };
+      case 'late':
+        return {
+          'color': Colors.orange,
+          'icon': Icons.warning_amber_outlined,
+          'text': 'Tardío'
+        };
+      case 'pending':
+      default:
+        return {
+          'color': Colors.grey,
+          'icon': Icons.schedule,
+          'text': 'Pendiente'
+        };
+    }
   }
 }

@@ -2,9 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:yatha_app/config/environment.dart';
+import 'package:dio/dio.dart';
 
 class SupervisorService {
-  static const String _baseUrl = 'https://8d5b-38-25-28-10.ngrok-free.app';
+  static const String _baseUrl = Environment.apiUrl;
+  final Dio _dio = Dio();
 
   Future<List<Map<String, dynamic>>> getGestores() async {
     try {
@@ -70,7 +73,7 @@ class SupervisorService {
   }
 
   Future<Map<String, dynamic>> getGestorKPIs(
-      String gestorId, DateTime date) async {
+      String gestorId, DateTime startDate, DateTime endDate) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final uid = prefs.getInt('uid') ?? 0;
@@ -78,7 +81,7 @@ class SupervisorService {
       final database = prefs.getString('database') ?? 'prestamovf';
 
       print(
-          'Fetching KPIs for gestor: $gestorId, date: ${DateFormat('yyyy-MM-dd').format(date)}');
+          'Fetching KPIs for gestor: $gestorId, start date: ${DateFormat('yyyy-MM-dd').format(startDate)}, end date: ${DateFormat('yyyy-MM-dd').format(endDate)}');
 
       final response = await http.post(
         Uri.parse('$_baseUrl/jsonrpc'),
@@ -101,9 +104,27 @@ class SupervisorService {
               [
                 ["loan_id", "!=", false],
                 ["loan_id.partner_salesperson", "=", int.parse(gestorId)],
-                ["payment_date", "=", DateFormat('yyyy-MM-dd').format(date)]
+                [
+                  "payment_date",
+                  ">=",
+                  DateFormat('yyyy-MM-dd').format(startDate)
+                ],
+                ["payment_date", "<=", DateFormat('yyyy-MM-dd').format(endDate)]
               ],
-              ["payment_status", "payment_amount", "paid_amount"]
+              [
+                "id",
+                "name",
+                "payment_date",
+                "actual_payment_date",
+                "payment_status",
+                "payment_amount",
+                "paid_amount",
+                "paid_amount_cash",
+                "paid_amount_transferencia",
+                "partner_id",
+                "loan_id",
+                "payment_met"
+              ]
             ]
           }
         }),
@@ -114,54 +135,103 @@ class SupervisorService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Si result es null o una lista vacía, retornamos valores por defecto
-        if (data['result'] == null || (data['result'] as List).isEmpty) {
-          print(
-              'No se encontraron pagos para el gestor en la fecha especificada');
+        if (data['result'] == null) {
           return {
             'pending_count': 0,
             'completed_count': 0,
             'total_amount': 0.0,
             'collected_amount': 0.0,
             'efficiency': 0.0,
+            'payments': []
           };
         }
 
-        final payments = List<Map<String, dynamic>>.from(data['result']);
-        print('Procesando ${payments.length} pagos encontrados');
-
+        // Procesar los pagos y calcular métricas
+        final List<dynamic> payments = data['result'];
         int pendingCount = 0;
         int completedCount = 0;
-        double totalAmount = 0;
-        double collectedAmount = 0;
+        int lateCount = 0;
+        double totalAmount = 0.0;
+        double collectedAmount = 0.0;
 
         for (var payment in payments) {
-          if (payment['payment_status'] == 'pending') {
-            pendingCount++;
-            totalAmount += payment['payment_amount'] ?? 0;
-          } else if (payment['payment_status'] == 'paid') {
-            completedCount++;
-            collectedAmount += payment['paid_amount'] ?? 0;
+          final status = payment['payment_status']?.toString() ?? 'pending';
+          final expectedAmount = (payment['payment_amount'] ?? 0.0).toDouble();
+          double paidAmount = 0.0;
+
+          // Calcular el monto pagado considerando pagos mixtos
+          if (payment['payment_met'] == 'mixto') {
+            double cashAmount = (payment['paid_amount_cash'] ?? 0.0).toDouble();
+            double transferAmount =
+                (payment['paid_amount_transferencia'] ?? 0.0).toDouble();
+            paidAmount = cashAmount + transferAmount;
+          } else {
+            paidAmount = (payment['paid_amount'] ?? 0.0).toDouble();
           }
+
+          final timeStatus = _calculatePaymentTimeStatus(
+              payment['payment_date']?.toString() ?? '',
+              payment['actual_payment_date']?.toString(),
+              status);
+
+          if (status == 'pending') {
+            pendingCount++;
+            if (timeStatus == 'late') {
+              lateCount++;
+            }
+          } else if (status == 'paid' || status == 'partial') {
+            if (status == 'paid') {
+              completedCount++;
+            }
+            collectedAmount += paidAmount;
+          }
+
+          totalAmount += expectedAmount;
         }
 
-        print(
-            'Resumen KPIs: Pendientes: $pendingCount, Completados: $completedCount');
+        // Calcular eficiencia de desembolso
+        double efficiency =
+            payments.isEmpty ? 0.0 : completedCount / payments.length;
+
         return {
           'pending_count': pendingCount,
           'completed_count': completedCount,
+          'late_count': lateCount,
           'total_amount': totalAmount,
           'collected_amount': collectedAmount,
-          'efficiency':
-              payments.isEmpty ? 0.0 : completedCount / payments.length,
+          'efficiency': efficiency,
+          'payments': payments
         };
       }
-      throw Exception(
-          'Error en la respuesta del servidor: ${response.statusCode}');
+
+      throw Exception('Error al obtener los KPIs del gestor');
     } catch (e) {
       print('Error en getGestorKPIs: $e');
-      throw Exception('Error al obtener KPIs: $e');
+      throw Exception('Error al obtener los KPIs del gestor: $e');
     }
+  }
+
+  String _calculatePaymentTimeStatus(
+      String paymentDate, String? actualPaymentDate, String status) {
+    if (status == 'pending') return 'pending';
+
+    try {
+      final expectedDate = DateTime.parse(paymentDate);
+      if (actualPaymentDate == null) return 'pending';
+
+      final actualDate = DateTime.parse(actualPaymentDate);
+
+      if (actualDate.isAfter(expectedDate)) {
+        return 'late';
+      } else if (actualDate.isAtSameMomentAs(expectedDate) ||
+          actualDate.isBefore(expectedDate)) {
+        return 'ontime';
+      }
+    } catch (e) {
+      print('Error al calcular estado por tiempo: $e');
+    }
+
+    return 'pending';
   }
 
   Future<List<Map<String, dynamic>>> getGestorClientLocations(
@@ -175,6 +245,7 @@ class SupervisorService {
       print(
           'Fetching client locations for gestor: $gestorId, date: ${DateFormat('yyyy-MM-dd').format(date)}');
 
+      // Primero obtenemos los préstamos pendientes
       final response = await http.post(
         Uri.parse('$_baseUrl/jsonrpc'),
         headers: {
@@ -191,25 +262,23 @@ class SupervisorService {
               database,
               uid,
               password,
-              "loan.payment",
+              "loan.management",
               "search_read",
               [
-                ["loan_id", "!=", false],
-                ["loan_id.partner_salesperson", "=", int.parse(gestorId)],
-                ["payment_date", "=", DateFormat('yyyy-MM-dd').format(date)],
-                ["payment_status", "=", "pending"],
-                ["loan_id.partner_latitude", "!=", false],
-                ["loan_id.partner_longitude", "!=", false]
+                ["loan_status", "=", "pending"],
+                ["partner_salesperson.id", "=", int.parse(gestorId)],
+                ["partner_latitude", "!=", false],
+                ["partner_longitude", "!=", false]
               ],
               [
                 "id",
-                "loan_id",
+                "name",
+                "partner_id",
+                "partner_latitude",
+                "partner_longitude",
                 "payment_amount",
-                "payment_status",
-                "loan_id/partner_latitude",
-                "loan_id/partner_longitude",
-                "loan_id/partner_id",
-                "loan_id/partner_salesperson"
+                "loan_status",
+                "partner_salesperson"
               ]
             ]
           }
@@ -226,47 +295,41 @@ class SupervisorService {
           return [];
         }
 
-        final List<dynamic> payments = data['result'];
-        print('Encontrados ${payments.length} pagos con ubicación');
+        final List<dynamic> loans = data['result'];
+        print('Encontrados ${loans.length} préstamos con ubicación');
 
         final List<Map<String, dynamic>> locations = [];
 
-        for (var payment in payments) {
-          print('Procesando pago: ${payment['id']}');
-          print('Datos del pago:');
-          print('- Latitud: ${payment['loan_id/partner_latitude']}');
-          print('- Longitud: ${payment['loan_id/partner_longitude']}');
-          print('- Cliente: ${payment['loan_id/partner_id']}');
-          print('- Monto: ${payment['payment_amount']}');
-          print('- Estado: ${payment['payment_status']}');
-          print('- Gestor: ${payment['loan_id/partner_salesperson']}');
+        for (var loan in loans) {
+          print('Procesando préstamo: ${loan['id']}');
+          print('Datos del préstamo:');
+          print('- Latitud: ${loan['partner_latitude']}');
+          print('- Longitud: ${loan['partner_longitude']}');
+          print('- Cliente: ${loan['partner_id']}');
+          print('- Monto: ${loan['payment_amount']}');
+          print('- Estado: ${loan['loan_status']}');
+          print('- Gestor: ${loan['partner_salesperson']}');
 
-          // Convertir las coordenadas a double
-          final lat =
-              double.tryParse(payment['loan_id/partner_latitude'].toString()) ??
-                  0.0;
-          final lng = double.tryParse(
-                  payment['loan_id/partner_longitude'].toString()) ??
-              0.0;
-
-          if (lat == 0.0 || lng == 0.0) {
-            print('Coordenadas inválidas para el pago ${payment['id']}');
+          // Verificar que las coordenadas sean válidas
+          if (loan['partner_latitude'] == null ||
+              loan['partner_longitude'] == null) {
+            print('Coordenadas inválidas para el préstamo ${loan['id']}');
             continue;
           }
 
           locations.add({
-            'latitude': lat,
-            'longitude': lng,
-            'client_name': payment['loan_id/partner_id'] != null
-                ? payment['loan_id/partner_id'][1]
+            'latitude': loan['partner_latitude'],
+            'longitude': loan['partner_longitude'],
+            'client_name': loan['partner_id'] != null
+                ? loan['partner_id'][1]
                 : 'Sin nombre',
-            'amount': payment['payment_amount'] as double? ?? 0.0,
-            'status': payment['payment_status'] as String? ?? 'pending',
-            'gestor_name': payment['loan_id/partner_salesperson'] != null
-                ? payment['loan_id/partner_salesperson'][1]
+            'amount': loan['payment_amount'] as double? ?? 0.0,
+            'status': loan['loan_status'] as String? ?? 'pending',
+            'gestor_name': loan['partner_salesperson'] != null
+                ? loan['partner_salesperson'][1]
                 : 'Sin gestor',
-            'gestor_id': payment['loan_id/partner_salesperson'] != null
-                ? payment['loan_id/partner_salesperson'][0].toString()
+            'gestor_id': loan['partner_salesperson'] != null
+                ? loan['partner_salesperson'][0].toString()
                 : '0',
           });
         }
@@ -367,6 +430,199 @@ class SupervisorService {
     } catch (e) {
       print('Error en getAllGestorsClientLocations: $e');
       throw Exception('Error al obtener las ubicaciones de los clientes: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getDailyLoans(
+      DateTime startDate, DateTime endDate) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getInt('uid') ?? 0;
+      final password = prefs.getString('password') ?? '';
+      final database = prefs.getString('database') ?? 'prestamovf';
+
+      // Formatear las fechas para que coincidan con el formato de la base de datos
+      final formattedStartDate = DateFormat('yyyy-MM-dd').format(startDate);
+      final formattedEndDate = DateFormat('yyyy-MM-dd').format(endDate);
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/jsonrpc'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          "jsonrpc": "2.0",
+          "method": "call",
+          "params": {
+            "service": "object",
+            "method": "execute",
+            "args": [
+              database,
+              uid,
+              password,
+              "loan.management",
+              "search_read",
+              [
+                ["payment_period", "=", "daily"],
+                ["loan_status", "=", "pending"],
+                ["start_date", ">=", formattedStartDate],
+                ["start_date", "<=", formattedEndDate]
+              ],
+              [
+                "id",
+                "partner_id",
+                "partner_salesperson",
+                "payment_parts",
+                "days_overdue",
+                "create_uid",
+                "write_uid",
+                "name",
+                "prestamo_anterior",
+                "payment_period",
+                "loan_status",
+                "payment_frequency",
+                "start_date",
+                "first_payment_date",
+                "due_date",
+                "partner_latitude",
+                "partner_longitude",
+                "create_date",
+                "write_date",
+                "total_interest_paid",
+                "loan_amount",
+                "interest_rate",
+                "real_interest_rate",
+                "total_amount",
+                "profit",
+                "current_due",
+                "payment_amount",
+                "amount_due_today",
+                "total_cash_payments",
+                "total_transfer_payments"
+              ]
+            ]
+          }
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final decodedResponse = jsonDecode(response.body);
+        if (decodedResponse.containsKey('result')) {
+          return {'result': decodedResponse['result']};
+        }
+      }
+
+      return {'result': []};
+    } catch (e) {
+      print('Error en getDailyLoans: $e');
+      return {'result': []};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMapLocations(
+      String gestorId, DateTime date) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getInt('uid') ?? 0;
+      final password = prefs.getString('password') ?? '';
+      final database = prefs.getString('database') ?? 'prestamovf';
+
+      print(
+          'Fetching map locations for gestor: $gestorId, date: ${DateFormat('yyyy-MM-dd').format(date)}');
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/jsonrpc'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          "jsonrpc": "2.0",
+          "method": "call",
+          "params": {
+            "service": "object",
+            "method": "execute",
+            "args": [
+              database,
+              uid,
+              password,
+              "loan.payment",
+              "search_read",
+              [
+                ["loan_id", "!=", false],
+                ["loan_id.partner_salesperson", "=", int.parse(gestorId)],
+                ["payment_date", "=", DateFormat('yyyy-MM-dd').format(date)],
+                ["payment_status", "=", "pending"],
+                ["loan_id.partner_latitude", "!=", false],
+                ["loan_id.partner_longitude", "!=", false]
+              ],
+              [
+                "id",
+                "loan_id",
+                "payment_amount",
+                "payment_status",
+                "loan_id/partner_latitude",
+                "loan_id/partner_longitude",
+                "loan_id/partner_id",
+                "loan_id/partner_salesperson"
+              ]
+            ]
+          }
+        }),
+      );
+
+      print('Map Location Response status: ${response.statusCode}');
+      print('Map Location Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['result'] == null) {
+          print('No se encontraron ubicaciones para el gestor en el mapa');
+          return [];
+        }
+
+        final List<dynamic> payments = data['result'];
+        print('Encontrados ${payments.length} pagos con ubicación');
+
+        final List<Map<String, dynamic>> locations = [];
+
+        for (var payment in payments) {
+          print('Procesando pago: ${payment['id']}');
+
+          final lat = payment['loan_id/partner_latitude'];
+          final lng = payment['loan_id/partner_longitude'];
+
+          if (lat == null || lng == null) {
+            print('Coordenadas inválidas para el pago ${payment['id']}');
+            continue;
+          }
+
+          locations.add({
+            'latitude': double.tryParse(lat.toString()) ?? 0.0,
+            'longitude': double.tryParse(lng.toString()) ?? 0.0,
+            'client_name': payment['loan_id/partner_id'] != null
+                ? payment['loan_id/partner_id'][1]
+                : 'Sin nombre',
+            'amount': payment['payment_amount'] as double? ?? 0.0,
+            'status': payment['payment_status'] as String? ?? 'pending',
+            'gestor_name': payment['loan_id/partner_salesperson'] != null
+                ? payment['loan_id/partner_salesperson'][1]
+                : 'Sin gestor',
+            'gestor_id': payment['loan_id/partner_salesperson'] != null
+                ? payment['loan_id/partner_salesperson'][0].toString()
+                : '0',
+          });
+        }
+
+        print('Ubicaciones del mapa procesadas: ${locations.length}');
+        return locations;
+      }
+
+      throw Exception('Error al obtener las ubicaciones para el mapa');
+    } catch (e) {
+      print('Error en getMapLocations: $e');
+      throw Exception('Error al obtener las ubicaciones para el mapa: $e');
     }
   }
 }

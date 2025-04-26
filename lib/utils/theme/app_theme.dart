@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static final ColorScheme colorScheme = ColorScheme.fromSeed(
     seedColor: const Color(0xFF2E3147),
-    primary: const Color(0xFF2E3147),
+    primary: const Color(0xFF0A8D5B),
     secondary: const Color(0xFF4A90E2),
     background: const Color(0xFFF5F6FA),
+
   );
 
   static final ThemeData lightTheme = ThemeData(
@@ -45,7 +46,7 @@ class AppTheme {
   );
 
   static const primaryColor = Color(0xFF1565C0);
-  static const secondaryColor = Color(0xFF2E7D32);
+  static const secondaryColor = Color(0xFF0A8D5B);
   static const tertiaryColor = Color(0xFFD32F2F);
 
   // Estilos para efectos de blur

@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:yatha_app/config/environment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://8d5b-38-25-28-10.ngrok-free.app';
+  static const String baseUrl = Environment.apiUrl;
 
   // Función para obtener las credenciales guardadas
   Future<Map<String, dynamic>> _getCredentials() async {
@@ -507,36 +508,77 @@ class ApiService {
     Map<String, dynamic> paymentData,
   ) async {
     try {
-      final endpoint = '$baseUrl/api/payment/daily/update';
-      final headers = {'Content-Type': 'application/json'};
+      print('Registrando pago: $paymentData');
 
-      print('URL: $endpoint'); // Debug
-      print('Headers: $headers'); // Debug
-      print('PaymentData: $paymentData'); // Debug
+      final url = Uri.parse('$baseUrl/api/payment/daily/update');
+
+      // Asegurarse de que el JSON tenga el formato correcto según el método de pago
+      final params = paymentData['params'];
+      if (params['payment_met'] == 'mixto') {
+        // Para pagos mixtos, asegurarse de que los montos estén presentes
+        params['paid_amount_cash'] = params['paid_amount_cash'] ?? 0.0;
+        params['paid_amount_transferencia'] =
+            params['paid_amount_transferencia'] ?? 0.0;
+
+        // Calcular el monto total para la verificación
+        params['paid_amount'] =
+            (params['paid_amount_cash'] + params['paid_amount_transferencia'])
+                .toDouble();
+      } else {
+        // Para pagos en efectivo o transferencia
+        params['paid_amount'] = params['paid_amount'] ??
+            params['paid_amount_cash'] ??
+            params['paid_amount_transferencia'] ??
+            0.0;
+
+        // Eliminar campos innecesarios para pagos no mixtos
+        params.remove('paid_amount_cash');
+        params.remove('paid_amount_transferencia');
+      }
 
       final response = await http.post(
-        Uri.parse(endpoint),
-        headers: headers,
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode(paymentData),
       );
 
-      print('Status code: ${response.statusCode}'); // Debug
-      print('Response body: ${response.body}'); // Debug
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['error'] != null) {
+        final responseData = jsonDecode(response.body);
+
+        if (responseData.containsKey('error')) {
           return {
-            'error': data['error']['message'] ?? 'Error al registrar pago',
+            'error': responseData['error']['message'] ?? 'Error desconocido'
           };
         }
-        return data;
+
+        // Esperar un momento para que el backend procese el pago
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Intentar obtener el estado actualizado del pago
+        final verificationResponse =
+            await getLoanPayments(uid, paymentId.toString());
+
+        if (verificationResponse.containsKey('error')) {
+          return {
+            'error': 'El pago se registró pero no se pudo verificar el estado'
+          };
+        }
+
+        return {'success': true, 'data': responseData};
       } else {
-        return {'error': 'Error de conexión: ${response.statusCode}'};
+        return {
+          'error': 'Error al registrar el pago: ${response.statusCode}',
+        };
       }
     } catch (e) {
-      print('Error al registrar pago: $e'); // Debug
-      return {'error': 'Error de conexión: $e'};
+      print('Error en registerPayment: $e');
+      return {'error': 'Error al procesar el pago: $e'};
     }
   }
 

@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:yatha_app/config/environment.dart';
 
 class PagoService {
   // URL para emulador Android y dispositivos físicos
-  static const String _baseUrl = 'https://8d5b-38-25-28-10.ngrok-free.app';
+  static const String _baseUrl = Environment.apiUrl;
 
   // Pago diario simple (cash o transfer)
   Future<Map<String, dynamic>> realizarPagoDiario(
