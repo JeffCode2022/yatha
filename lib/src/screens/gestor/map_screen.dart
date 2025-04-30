@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../utils/widgets/mapa_gestor_widget.dart';
+import '../../utils/widgets/mapa_gestor_widget.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});

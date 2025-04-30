@@ -8,7 +8,7 @@ import 'src/providers/loan_provider.dart';
 import 'src/providers/payment_provider.dart';
 import 'src/providers/cliente_provider.dart';
 import 'src/providers/supervisor_provider.dart';
-import 'utils/theme/app_theme.dart';
+import 'src/utils/theme/app_theme.dart';
 import 'src/routes/app_routes.dart';
 import 'src/screens/auth/login_screen.dart';
 import 'src/screens/home_screen.dart';
@@ -19,9 +19,11 @@ import 'src/screens/gestor/profile_screen.dart';
 import 'src/screens/supervisor/supervisor_kpi_screen.dart';
 import 'src/screens/supervisor/supervisor_map_screen.dart';
 import 'src/screens/gestor/loan_detail_screen.dart';
+import 'package:yatha_app/src/config/environment.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Environment.init();
 
   final authProvider = AuthProvider();
   await authProvider.initializeAuth();

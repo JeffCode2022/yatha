@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'package:yatha_app/config/environment.dart';
+import 'package:yatha_app/src/config/environment.dart';
 
 class SupervisorMapService {
-  static const String _baseUrl = Environment.apiUrl;
+  String get _baseUrl => Environment.apiUrl;
 
   Future<List<Map<String, dynamic>>> getPendingClientsForGestorAndDate({
     required String gestorId,

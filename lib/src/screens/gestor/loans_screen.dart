@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:get/get.dart';
 import 'package:yatha_app/src/providers/auth_provider.dart';
 import 'package:yatha_app/src/providers/loan_provider.dart';
-import 'package:yatha_app/utils/theme/app_theme.dart';
+import 'package:yatha_app/src/utils/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:yatha_app/src/providers/cliente_provider.dart';
 import 'package:yatha_app/src/models/loan.dart';

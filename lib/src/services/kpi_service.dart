@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:yatha_app/config/environment.dart';
+import 'package:yatha_app/src/config/environment.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yatha_app/src/services/base_service.dart';
+import 'package:yatha_app/src/utils/date_utils.dart';
+import 'package:yatha_app/src/utils/logger.dart';
+import 'package:yatha_app/src/config/environment.dart' as env;
 
-class KpiService {
-  final String baseUrl = Environment.apiUrl;
-  final String dbName = Environment.dbName;
+class KpiService extends BaseService {
+  String get baseUrl => Environment.apiUrl;
+  String get dbName => Environment.dbName;
 
   Future<Map<String, dynamic>> _getCredentials() async {
     try {
@@ -32,12 +36,7 @@ class KpiService {
   Future<Map<String, dynamic>> getDailyKPIs(String userId, DateTime date,
       {bool isMonthly = false}) async {
     try {
-      final credentials = await _getCredentials();
-      if (credentials.isEmpty) {
-        throw Exception('No hay credenciales disponibles');
-      }
-
-      final response = await _getPayments(userId, date, isMonthly, credentials);
+      final response = await _getPayments(userId, date, isMonthly);
       final payments = _processPayments(response, isMonthly);
 
       final totalExpected = _calculateTotalExpected(payments);
@@ -57,12 +56,12 @@ class KpiService {
             'completionPercentage': completionPercentage
           },
           'statusCounts': statusCounts,
-          'date': DateFormat('yyyy-MM-dd').format(date),
+          'date': DateUtils.formatDate(date),
           'isMonthly': isMonthly
         }
       };
     } catch (e) {
-      print('Error en getDailyKPIs: ${e.toString()}');
+      Logger.error('Error en getDailyKPIs', e);
       return {
         'success': false,
         'error': e.toString(),
@@ -76,18 +75,15 @@ class KpiService {
             'cancelled': 0,
             'partial': 0
           },
-          'date': DateFormat('yyyy-MM-dd').format(date),
+          'date': DateUtils.formatDate(date),
           'isMonthly': isMonthly
         }
       };
     }
   }
 
-  Future<dynamic> _getPayments(String userId, DateTime date, bool isMonthly,
-      Map<String, dynamic> credentials) async {
-    final url = Uri.parse('$baseUrl/jsonrpc');
-    final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-
+  Future<dynamic> _getPayments(
+      String userId, DateTime date, bool isMonthly) async {
     final queryFields = isMonthly
         ? [
             "id",
@@ -133,71 +129,40 @@ class KpiService {
         : [
             ["loan_id", "!=", false],
             ["loan_id.partner_salesperson", "=", int.parse(userId)],
-            ["payment_date", "=", formattedDate]
+            ["payment_date", "=", DateUtils.formatDate(date)]
           ];
 
-    print('KpiService - URL: $url');
-    print('KpiService - Filtros: $queryFilters');
-    print('KpiService - Campos: $queryFields');
-    print('KpiService - Usuario ID: $userId');
-    print('KpiService - Es mensual: $isMonthly');
+    Logger.debug('Obteniendo pagos para usuario: $userId');
+    Logger.debug('Fecha: ${DateUtils.formatDate(date)}');
+    Logger.debug('Es mensual: $isMonthly');
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        "jsonrpc": "2.0",
-        "method": "call",
-        "params": {
-          "service": "object",
-          "method": "execute",
-          "args": [
-            dbName,
-            credentials['uid'],
-            credentials['password'],
-            isMonthly ? "loan.management" : "loan.payment",
-            "search_read",
-            queryFilters,
-            queryFields
-          ]
-        }
-      }),
+    final response = await executeOdooMethod(
+      model: isMonthly ? "loan.management" : "loan.payment",
+      method: "search_read",
+      args: [queryFilters, queryFields],
     );
 
-    print('KpiService - Status code: ${response.statusCode}');
-    print('KpiService - Response body: ${response.body}');
-
-    if (response.statusCode == 200) {
-      final decodedData = jsonDecode(response.body);
-      if (decodedData.containsKey('error')) {
-        print('KpiService - Error en la respuesta: ${decodedData['error']}');
-        throw Exception(
-            decodedData['error']['data']['message'] ?? 'Error desconocido');
-      }
-      final result = decodedData['result'] ?? [];
-      print('KpiService - Número de préstamos encontrados: ${result.length}');
-      return result;
-    } else {
-      throw Exception('Error al obtener pagos: ${response.statusCode}');
+    if (response['result'] != null) {
+      Logger.info('Pagos encontrados: ${response['result'].length}');
+      return response['result'];
     }
+
+    throw Exception('Error al obtener pagos');
   }
 
   List<Map<String, dynamic>> _processPayments(
       List<dynamic> rawPayments, bool isMonthly) {
-    print('KpiService - Procesando ${rawPayments.length} pagos');
+    Logger.debug('Procesando ${rawPayments.length} pagos');
     return rawPayments.map<Map<String, dynamic>>((payment) {
       if (isMonthly) {
         final totalPaid = ((payment['total_cash_payments'] ?? 0.0) +
                 (payment['total_transfer_payments'] ?? 0.0))
             .toDouble();
-        final status = _determinePaymentStatus(payment['days_overdue'] ?? 0,
-            totalPaid, payment['amount_due_today'] ?? 0.0);
-
-        print(
-            'KpiService - Procesando pago mensual: ${payment['name']} - Estado: $status');
+        final status = _determinePaymentStatus(
+          payment['days_overdue'] ?? 0,
+          totalPaid,
+          payment['amount_due_today'] ?? 0.0,
+        );
 
         return {
           'id': payment['id'],
@@ -215,25 +180,20 @@ class KpiService {
         final status = payment['payment_status'] ?? 'pending';
         double paidAmount = 0.0;
 
-        // Calcular el monto pagado considerando pagos mixtos
         if (payment['payment_met'] == 'mixto') {
           double cashAmount = (payment['paid_amount_cash'] ?? 0.0).toDouble();
           double transferAmount =
               (payment['paid_amount_transferencia'] ?? 0.0).toDouble();
           paidAmount = cashAmount + transferAmount;
-          print(
-              'KpiService - Pago mixto procesado - Efectivo: $cashAmount, Transferencia: $transferAmount, Total: $paidAmount');
         } else {
           paidAmount = (payment['paid_amount'] ?? 0.0).toDouble();
         }
 
         final timeStatus = _calculatePaymentTimeStatus(
-            payment['payment_date'] ?? '',
-            payment['actual_payment_date'],
-            status);
-
-        print(
-            'KpiService - Procesando pago diario: ${payment['name']} - Estado: $status - Estado temporal: $timeStatus - Monto: $paidAmount - Método: ${payment['payment_met']}');
+          payment['payment_date'] ?? '',
+          payment['actual_payment_date'],
+          status,
+        );
 
         return {
           'id': payment['id'],
@@ -249,38 +209,86 @@ class KpiService {
           'paymentMet': payment['payment_met'],
           'paid_amount_cash': (payment['paid_amount_cash'] ?? 0.0).toDouble(),
           'paid_amount_transferencia':
-              (payment['paid_amount_transferencia'] ?? 0.0).toDouble()
+              (payment['paid_amount_transferencia'] ?? 0.0).toDouble(),
         };
       }
     }).toList();
   }
 
+  double _calculateTotalExpected(List<Map<String, dynamic>> payments) {
+    return payments.fold(
+      0.0,
+      (sum, payment) => sum + (payment['expectedAmount'] ?? 0.0),
+    );
+  }
+
+  double _calculateTotalPaid(List<Map<String, dynamic>> payments) {
+    return payments.fold(
+      0.0,
+      (sum, payment) => sum + (payment['paidAmount'] ?? 0.0),
+    );
+  }
+
+  Map<String, int> _calculateStatusCounts(List<Map<String, dynamic>> payments) {
+    final counts = {
+      'pending': 0,
+      'late': 0,
+      'completed': 0,
+      'cancelled': 0,
+      'partial': 0
+    };
+
+    for (var payment in payments) {
+      final status = payment['status']?.toString() ?? 'pending';
+      final timeStatus = payment['timeStatus']?.toString();
+
+      if (status == 'pending') {
+        if (timeStatus == 'late') {
+          counts['late'] = (counts['late'] ?? 0) + 1;
+        } else {
+          counts['pending'] = (counts['pending'] ?? 0) + 1;
+        }
+      } else if (status == 'paid') {
+        counts['completed'] = (counts['completed'] ?? 0) + 1;
+      } else if (status == 'cancelled') {
+        counts['cancelled'] = (counts['cancelled'] ?? 0) + 1;
+      } else if (status == 'partial') {
+        counts['partial'] = (counts['partial'] ?? 0) + 1;
+      }
+    }
+
+    return counts;
+  }
+
   String _determinePaymentStatus(
-      int daysOverdue, double totalPaid, double amountDue) {
-    if (totalPaid >= amountDue) {
-      return daysOverdue > 0 ? 'late' : 'paid';
-    }
-    if (totalPaid > 0 && totalPaid < amountDue) {
+    int daysOverdue,
+    double paidAmount,
+    double expectedAmount,
+  ) {
+    if (paidAmount >= expectedAmount) {
+      return 'paid';
+    } else if (paidAmount > 0) {
       return 'partial';
-    }
-    if (daysOverdue > 0) {
+    } else if (daysOverdue > 0) {
       return 'late';
+    } else {
+      return 'pending';
     }
-    return 'pending';
   }
 
   String _calculatePaymentTimeStatus(
-      String paymentDate, String? actualPaymentDate, String status) {
+    String paymentDate,
+    String? actualPaymentDate,
+    String status,
+  ) {
     if (status == 'pending') return 'pending';
 
     try {
       final expectedDate = DateTime.parse(paymentDate);
-      // Si no hay fecha de pago actual, está pendiente
       if (actualPaymentDate == null) return 'pending';
 
       final actualDate = DateTime.parse(actualPaymentDate);
 
-      // Comparar las fechas
       if (actualDate.isAfter(expectedDate)) {
         return 'late';
       } else if (actualDate.isAtSameMomentAs(expectedDate) ||
@@ -288,69 +296,10 @@ class KpiService {
         return 'ontime';
       }
     } catch (e) {
-      print('KpiService - Error al calcular estado por tiempo: $e');
+      Logger.error('Error al calcular estado por tiempo', e);
     }
 
     return 'pending';
-  }
-
-  double _calculateTotalExpected(List<Map<String, dynamic>> payments) {
-    return payments.fold(
-        0.0, (sum, payment) => sum + (payment['expectedAmount'] ?? 0.0));
-  }
-
-  double _calculateTotalPaid(List<Map<String, dynamic>> payments) {
-    return payments.fold(0.0, (sum, payment) {
-      // Si es un pago mixto, sumar ambos montos independientemente del estado
-      if (payment['paymentMet'] == 'mixto') {
-        double cashAmount = (payment['paid_amount_cash'] ?? 0.0).toDouble();
-        double transferAmount =
-            (payment['paid_amount_transferencia'] ?? 0.0).toDouble();
-        return sum + cashAmount + transferAmount;
-      }
-      // Para otros tipos de pago, usar el paidAmount
-      return sum + (payment['paidAmount'] ?? 0.0);
-    });
-  }
-
-  Map<String, int> _calculateStatusCounts(List<Map<String, dynamic>> payments) {
-    int pending = 0;
-    int late = 0;
-    int completed = 0;
-    int partial = 0;
-
-    for (var payment in payments) {
-      final status = payment['status'];
-      double totalPaid = 0.0;
-      double expectedAmount = payment['expectedAmount'] ?? 0.0;
-
-      // Calcular el monto total pagado considerando pagos mixtos
-      if (payment['paymentMet'] == 'mixto') {
-        totalPaid = ((payment['paid_amount_cash'] ?? 0.0) +
-                (payment['paid_amount_transferencia'] ?? 0.0))
-            .toDouble();
-      } else {
-        totalPaid = (payment['paidAmount'] ?? 0.0).toDouble();
-      }
-
-      // Determinar el estado basado en el monto pagado
-      if (totalPaid >= expectedAmount) {
-        completed++;
-      } else if (totalPaid > 0 && totalPaid < expectedAmount) {
-        partial++;
-      } else if (status == 'late') {
-        late++;
-      } else {
-        pending++;
-      }
-    }
-
-    return {
-      'pending': pending,
-      'late': late,
-      'completed': completed,
-      'partial': partial,
-    };
   }
 
   Map<String, dynamic> _calculatePaymentStats(List<dynamic> payments) {
@@ -436,5 +385,66 @@ class KpiService {
     } catch (e) {
       throw Exception('Error en la conexión: $e');
     }
+  }
+
+  Future<Map<String, dynamic>> getKpis() async {
+    try {
+      final queryFilters = [
+        ["partner_salesperson", "=", (await getCredentials())['uid']]
+      ];
+
+      final response = await executeOdooMethod(
+        model: "loan.management",
+        method: "search_read",
+        args: [queryFilters, _getKpiFields()],
+      );
+
+      if (response['result'] != null) {
+        final loans = List<Map<String, dynamic>>.from(response['result']);
+        return _calculateKpis(loans);
+      }
+      return {};
+    } catch (e) {
+      Logger.error('Error en getKpis', e);
+      rethrow;
+    }
+  }
+
+  List<String> _getKpiFields() {
+    return [
+      "id",
+      "name",
+      "partner_salesperson",
+      "loan_status",
+      "loan_amount",
+      "payment_period",
+      "payment_parts",
+      "amount_due_today",
+      "total_amount",
+      "current_due"
+    ];
+  }
+
+  Map<String, dynamic> _calculateKpis(List<Map<String, dynamic>> loans) {
+    final totalLoans = loans.length;
+    final totalAmount = loans.fold<double>(
+        0, (sum, loan) => sum + (loan['loan_amount'] ?? 0.0));
+    final totalDue = loans.fold<double>(
+        0, (sum, loan) => sum + (loan['amount_due_today'] ?? 0.0));
+    final pendingLoans =
+        loans.where((loan) => loan['loan_status'] == 'pending').length;
+    final completedLoans =
+        loans.where((loan) => loan['loan_status'] == 'paid').length;
+
+    return {
+      'total_loans': totalLoans,
+      'total_amount': totalAmount,
+      'total_due': totalDue,
+      'pending_loans': pendingLoans,
+      'completed_loans': completedLoans,
+      'completion_rate': totalLoans > 0
+          ? (completedLoans / totalLoans * 100).toStringAsFixed(2)
+          : '0.00',
+    };
   }
 }

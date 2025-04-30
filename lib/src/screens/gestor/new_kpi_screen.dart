@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import 'dart:ui';
 import 'package:yatha_app/src/providers/auth_provider.dart';
 import 'package:yatha_app/src/providers/kpi_provider.dart';
-import 'package:yatha_app/utils/theme/app_theme.dart';
-import 'package:yatha_app/utils/widgets/progress_indicator_widget.dart';
+import 'package:yatha_app/src/utils/theme/app_theme.dart';
+import 'package:yatha_app/src/utils/widgets/progress_indicator_widget.dart';
 
 class NewKpiScreen extends StatefulWidget {
   const NewKpiScreen({Key? key}) : super(key: key);

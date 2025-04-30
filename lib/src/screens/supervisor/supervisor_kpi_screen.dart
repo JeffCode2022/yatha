@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../src/providers/supervisor_provider.dart';
-import '../../../utils/widgets/custom_dropdown.dart';
-import '../../../utils/widgets/date_picker.dart';
+import '../../utils/widgets/custom_dropdown.dart';
+import '../../utils/widgets/date_picker.dart';
 import '../../models/gestor.dart';
 import 'package:intl/intl.dart';
-import '../../../utils/theme/app_theme.dart';
+import '../../utils/theme/app_theme.dart';
 
 class SupervisorKpiScreen extends StatefulWidget {
   const SupervisorKpiScreen({Key? key}) : super(key: key);

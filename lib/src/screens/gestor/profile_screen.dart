@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:ui';
 import 'package:yatha_app/src/providers/auth_provider.dart';
 import 'package:yatha_app/src/providers/kpi_provider.dart';
-import 'package:yatha_app/utils/theme/app_theme.dart';
+import 'package:yatha_app/src/utils/theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:get/get.dart';
-import '../../src/providers/auth_provider.dart';
-import '../../src/providers/kpi_provider.dart';
-import '../../src/providers/loan_provider.dart';
-import '../../src/providers/payment_provider.dart';
-import '../../src/providers/cliente_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/kpi_provider.dart';
+import '../../providers/loan_provider.dart';
+import '../../providers/payment_provider.dart';
+import '../../providers/cliente_provider.dart';
 import '../theme/app_theme.dart';
-import '../../src/routes/app_routes.dart';
-import '../../src/screens/home_screen.dart';
+import '../../routes/app_routes.dart';
+import '../../screens/home_screen.dart';
 
 class BaseScreen extends StatelessWidget {
   final String title;

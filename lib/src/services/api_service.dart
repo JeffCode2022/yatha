@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:yatha_app/config/environment.dart';
+import 'package:yatha_app/src/config/environment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yatha_app/src/services/base_service.dart';
+import 'package:yatha_app/src/utils/logger.dart';
 
-class ApiService {
-  static const String baseUrl = Environment.apiUrl;
+class ApiService extends BaseService {
+  String get baseUrl => Environment.apiUrl;
 
   // Función para obtener las credenciales guardadas
   Future<Map<String, dynamic>> _getCredentials() async {
@@ -37,84 +39,53 @@ class ApiService {
 
   // Función para autenticar al usuario
   Future<Map<String, dynamic>> login(String username, String password) async {
-    final url = Uri.parse('$baseUrl/api/roles/auth');
-
-    final headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-
-    // Estructura exacta como en Postman
-    final body = jsonEncode({
-      "jsonrpc": "2.0",
-      "params": {"db": "prestamovf", "login": username, "password": password}
-    });
-
     try {
-      print('ApiService - Login URL: $url');
-      print('ApiService - Login Headers: $headers');
-      print('ApiService - Login Body: $body');
+      final body = {
+        "jsonrpc": "2.0",
+        "params": {
+          "db": Environment.dbName,
+          "login": username,
+          "password": password
+        }
+      };
 
-      final response = await http.post(url, headers: headers, body: body);
-      print('ApiService - Login Status code: ${response.statusCode}');
-      print('ApiService - Login Response body: ${response.body}');
+      final response = await post(Environment.authEndpoint, body: body);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      if (response['result'] != null) {
+        final result = response['result'];
 
-        // Si hay error en la respuesta
-        if (data['error'] != null) {
-          print('ApiService - Login Error en respuesta: ${data['error']}');
-          return {
-            'error': data['error']['message'] ?? 'Error de autenticación',
-          };
+        // Determinar el rol basado en el email
+        String role = 'gestor';
+        if (username.toLowerCase().contains('supervisor')) {
+          role = 'supervisor';
         }
 
-        // Si hay resultado exitoso
-        if (data['result'] != null) {
-          final result = data['result'];
-          print('ApiService - Login Result: $result');
+        // Guardar datos de sesión
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('uid', result['uid']);
+        await prefs.setString('role', role);
+        await prefs.setString('username', username);
+        await prefs.setString('password', '1234');
+        await prefs.setString('auth_token', result['token'] ?? '');
 
-          // Determinar el rol basado en el email
-          String role = 'gestor';
-          if (username.toLowerCase().contains('supervisor')) {
-            role = 'supervisor';
-          }
-
-          // Guardar datos de sesión
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setInt('uid', result['uid']);
-          await prefs.setString('role', role);
-          await prefs.setString('username', username);
-          await prefs.setString(
-              'password', '1234'); // Contraseña fija como en Postman
-          await prefs.setString(
-              'auth_token', result['token'] ?? ''); // Guardamos el token
-
-          print('ApiService - Datos guardados en SharedPreferences:');
-          print('ApiService - UID: ${result['uid']}');
-          print('ApiService - Role: $role');
-          print('ApiService - Username: $username');
-
-          return {
-            'success': true,
-            'uid': result['uid'],
-            'role': role,
-            'name': username.split('@')[0],
-            'email': username,
-          };
-        }
-
-        print('ApiService - Login Error: Respuesta sin result');
-        return {'error': 'Respuesta inválida del servidor'};
-      } else {
-        print('ApiService - Login Error de conexión: ${response.statusCode}');
         return {
-          'error': 'Error en la conexión, código: ${response.statusCode}',
+          'success': true,
+          'uid': result['uid'],
+          'role': role,
+          'name': username.split('@')[0],
+          'email': username,
         };
       }
+
+      if (response['error'] != null) {
+        return {
+          'error': response['error']['message'] ?? 'Error de autenticación',
+        };
+      }
+
+      return {'error': 'Respuesta inválida del servidor'};
     } catch (e) {
-      print('ApiService - Login Error: $e');
+      Logger.error('Error en login', e);
       return {'error': 'Error de conexión: $e'};
     }
   }
@@ -124,33 +95,77 @@ class ApiService {
     int uid,
     String paymentPeriod,
   ) async {
-    final credentials = await _getCredentials();
-
-    if (credentials.isEmpty) {
-      print(
-          'ApiService - Error: No hay credenciales disponibles para getAssignedLoans');
-      return {'error': 'No hay credenciales disponibles'};
-    }
-
-    final url = Uri.parse('$baseUrl/jsonrpc');
-
-    final headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
+    final body = {
+      "jsonrpc": "2.0",
+      "method": "call",
+      "params": {
+        "service": "object",
+        "method": "execute",
+        "args": [
+          "prestamovf",
+          uid,
+          "1234",
+          "loan.management",
+          "search_read",
+          [
+            ["payment_period", "=", paymentPeriod],
+            ["loan_status", "=", "pending"],
+            ["partner_salesperson.id", "=", uid]
+          ],
+          [
+            "id",
+            "partner_id",
+            "partner_salesperson",
+            "payment_parts",
+            "days_overdue",
+            "create_uid",
+            "write_uid",
+            "name",
+            "prestamo_anterior",
+            "payment_period",
+            "loan_status",
+            "payment_frequency",
+            "start_date",
+            "first_payment_date",
+            "due_date",
+            "partner_latitude",
+            "partner_longitude",
+            "create_date",
+            "write_date",
+            "total_interest_paid",
+            "loan_amount",
+            "interest_rate",
+            "real_interest_rate",
+            "total_amount",
+            "profit",
+            "current_due",
+            "payment_amount",
+            "amount_due_today",
+            "total_cash_payments",
+            "total_transfer_payments"
+          ]
+        ]
+      }
     };
 
-    // Determinar los filtros según el tipo de préstamo
-    final queryFilters = [
-      ["payment_period", "=", paymentPeriod],
-      [
-        "loan_status",
-        "in",
-        ["pending", "active"]
-      ],
-      ["partner_salesperson.id", "=", uid]
-    ];
+    try {
+      final response = await post('/jsonrpc', body: body);
+      if (response['error'] != null) {
+        return {
+          'error': response['error']['message'] ?? 'Error al obtener préstamos',
+        };
+      }
+      if (response['result'] == null) {
+        return {'result': []};
+      }
+      return response;
+    } catch (e) {
+      return {'error': 'Error de conexión: $e'};
+    }
+  }
 
-    final queryFields = [
+  List<String> _getLoanFields() {
+    return [
       "id",
       "partner_id",
       "name",
@@ -169,66 +184,6 @@ class ApiService {
       "total_transfer_payments",
       "current_due"
     ];
-
-    final body = jsonEncode({
-      "jsonrpc": "2.0",
-      "method": "call",
-      "params": {
-        "service": "object",
-        "method": "execute",
-        "args": [
-          "prestamovf",
-          credentials['uid'],
-          credentials['password'],
-          "loan.management",
-          "search_read",
-          queryFilters,
-          queryFields
-        ]
-      }
-    });
-
-    try {
-      print('ApiService - getAssignedLoans URL: $url');
-      print('ApiService - getAssignedLoans Headers: $headers');
-      print('ApiService - getAssignedLoans Body: $body');
-
-      final response = await http.post(url, headers: headers, body: body);
-      print(
-          'ApiService - getAssignedLoans Status code: ${response.statusCode}');
-      print('ApiService - getAssignedLoans Response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data.containsKey('error')) {
-          print('ApiService - getAssignedLoans Error: ${data['error']}');
-          return {
-            'error': data['error']['data']['message'] ??
-                'Error al obtener préstamos',
-            'success': false
-          };
-        }
-
-        if (data.containsKey('result')) {
-          final loans = data['result'] as List<dynamic>;
-          print('ApiService - Préstamos encontrados: ${loans.length}');
-          return {'success': true, 'loans': loans};
-        }
-
-        print('ApiService - Respuesta inesperada: $data');
-        return {'error': 'Formato de respuesta inválido', 'success': false};
-      }
-
-      print('ApiService - Error de conexión: ${response.statusCode}');
-      return {
-        'error': 'Error en la conexión, código: ${response.statusCode}',
-        'success': false
-      };
-    } catch (e) {
-      print('ApiService - getAssignedLoans Error: $e');
-      return {'error': 'Error de conexión: $e', 'success': false};
-    }
   }
 
   // Función para obtener los préstamos asignados a un gestor
@@ -338,165 +293,102 @@ class ApiService {
     int uid,
     String clientName,
   ) async {
-    final token = await _getToken();
-    if (token == null) {
-      return {'error': 'No hay token de autenticación'};
-    }
-
-    final url = Uri.parse('$baseUrl/jsonrpc');
-
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
-    final body = jsonEncode({
-      "jsonrpc": "2.0",
-      "method": "call",
-      "params": {
-        "service": "object",
-        "method": "execute",
-        "args": [
-          "prestamovf",
-          uid,
-          "admin",
-          "loan.management",
-          "search_read",
-          [
-            ["partner_salesperson.id", "=", uid],
-            ["partner_id.name", "ilike", clientName]
-          ],
-          [
-            "id",
-            "partner_id",
-            "name",
-            "loan_amount",
-            "payment_parts",
-            "payment_period",
-            "amount_due_today",
-            "partner_latitude",
-            "partner_longitude",
-            "loan_status",
-            "partner_phone",
-            "partner_address",
-            "installments"
-          ]
-        ]
-      }
-    });
-
     try {
-      final response = await http.post(url, headers: headers, body: body);
+      final queryFilters = [
+        ["partner_salesperson.id", "=", uid],
+        ["partner_id.name", "ilike", clientName]
+      ];
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final queryFields = [
+        "id",
+        "partner_id",
+        "name",
+        "loan_amount",
+        "payment_parts",
+        "payment_period",
+        "amount_due_today",
+        "partner_latitude",
+        "partner_longitude",
+        "loan_status",
+        "partner_phone",
+        "partner_address",
+        "installments"
+      ];
 
-        if (data['error'] != null) {
-          return {
-            'error': data['error']['message'] ?? 'Error al buscar préstamos',
-          };
-        }
+      final response = await executeOdooMethod(
+        model: "loan.management",
+        method: "search_read",
+        args: [queryFilters, queryFields],
+      );
 
-        if (data['result'] != null) {
-          return {
-            'success': true,
-            'loans': data['result'],
-          };
-        }
-
+      if (response['result'] != null) {
         return {
           'success': true,
-          'loans': [],
-        };
-      } else {
-        return {
-          'error': 'Error en la conexión, código: ${response.statusCode}',
+          'loans': response['result'],
         };
       }
+
+      return {
+        'success': true,
+        'loans': [],
+      };
     } catch (e) {
+      Logger.error('Error en searchLoansByClientName', e);
       return {'error': 'Error de conexión: $e'};
     }
   }
 
   // Función para obtener los pagos de un préstamo
   Future<Map<String, dynamic>> getLoanPayments(int uid, String loanId) async {
-    final url = Uri.parse('$baseUrl/jsonrpc');
-
-    final headers = {'Content-Type': 'application/json'};
-
-    final body = jsonEncode({
-      "jsonrpc": "2.0",
-      "method": "call",
-      "params": {
-        "service": "object",
-        "method": "execute",
-        "args": [
-          "prestamovf",
-          uid,
-          "1234", // Password fijo como en Postman
-          "loan.payment",
-          "search_read",
-          [
-            ["loan_id", "=", loanId]
-          ],
-          [
-            "id",
-            "loan_id",
-            "partner_id",
-            "partner_salesperson",
-            "create_uid",
-            "write_uid",
-            "partner_address",
-            "name",
-            "payment_status",
-            "payment_met",
-            "date_status",
-            "payment_period",
-            "payment_date",
-            "actual_payment_date",
-            "observations",
-            "create_date",
-            "write_date",
-            "loan_amount",
-            "total_amount",
-            "paid_amount_total",
-            "current_due",
-            "payment_amount",
-            "paid_amount",
-            "loan_profit",
-            "loan_capital",
-            "interest_paid",
-            "capital_paid",
-            "monthly_total_due"
-          ]
-        ]
-      }
-    });
-
     try {
-      print('URL: $url'); // Debug
-      print('Headers: $headers'); // Debug
-      print('Body: $body'); // Debug
+      final queryFilters = [
+        ["loan_id", "=", loanId]
+      ];
 
-      final response = await http.post(url, headers: headers, body: body);
-      print('Status code: ${response.statusCode}'); // Debug
-      print('Response body: ${response.body}'); // Debug
+      final queryFields = [
+        "id",
+        "loan_id",
+        "partner_id",
+        "partner_salesperson",
+        "create_uid",
+        "write_uid",
+        "partner_address",
+        "name",
+        "payment_status",
+        "payment_met",
+        "date_status",
+        "payment_period",
+        "payment_date",
+        "actual_payment_date",
+        "observations",
+        "create_date",
+        "write_date",
+        "loan_amount",
+        "total_amount",
+        "paid_amount_total",
+        "current_due",
+        "payment_amount",
+        "paid_amount",
+        "loan_profit",
+        "loan_capital",
+        "interest_paid",
+        "capital_paid",
+        "monthly_total_due"
+      ];
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['error'] != null) {
-          return {
-            'error': data['error']['message'] ?? 'Error al obtener pagos',
-          };
-        }
-        return data;
-      } else {
-        return {
-          'error': 'Error en la conexión, código: ${response.statusCode}',
-        };
+      final response = await executeOdooMethod(
+        model: "loan.payment",
+        method: "search_read",
+        args: [queryFilters, queryFields],
+      );
+
+      if (response['result'] != null) {
+        return response;
       }
+
+      throw Exception('Error al obtener pagos');
     } catch (e) {
-      print('Error al obtener pagos: $e'); // Debug
+      Logger.error('Error en getLoanPayments', e);
       return {'error': 'Error de conexión: $e'};
     }
   }
@@ -508,9 +400,7 @@ class ApiService {
     Map<String, dynamic> paymentData,
   ) async {
     try {
-      print('Registrando pago: $paymentData');
-
-      final url = Uri.parse('$baseUrl/api/payment/daily/update');
+      Logger.info('Registrando pago: $paymentData');
 
       // Asegurarse de que el JSON tenga el formato correcto según el método de pago
       final params = paymentData['params'];
@@ -536,48 +426,29 @@ class ApiService {
         params.remove('paid_amount_transferencia');
       }
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(paymentData),
-      );
+      final response =
+          await post('/api/payment/daily/update', body: paymentData);
 
-      print('Status code: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      if (response.containsKey('error')) {
+        return {'error': response['error']['message'] ?? 'Error desconocido'};
+      }
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+      // Esperar un momento para que el backend procese el pago
+      await Future.delayed(const Duration(milliseconds: 500));
 
-        if (responseData.containsKey('error')) {
-          return {
-            'error': responseData['error']['message'] ?? 'Error desconocido'
-          };
-        }
+      // Intentar obtener el estado actualizado del pago
+      final verificationResponse =
+          await getLoanPayments(uid, paymentId.toString());
 
-        // Esperar un momento para que el backend procese el pago
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        // Intentar obtener el estado actualizado del pago
-        final verificationResponse =
-            await getLoanPayments(uid, paymentId.toString());
-
-        if (verificationResponse.containsKey('error')) {
-          return {
-            'error': 'El pago se registró pero no se pudo verificar el estado'
-          };
-        }
-
-        return {'success': true, 'data': responseData};
-      } else {
+      if (verificationResponse.containsKey('error')) {
         return {
-          'error': 'Error al registrar el pago: ${response.statusCode}',
+          'error': 'El pago se registró pero no se pudo verificar el estado'
         };
       }
+
+      return {'success': true, 'data': response};
     } catch (e) {
-      print('Error en registerPayment: $e');
+      Logger.error('Error en registerPayment', e);
       return {'error': 'Error al procesar el pago: $e'};
     }
   }

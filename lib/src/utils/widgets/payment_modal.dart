@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../src/providers/payment_provider.dart';
 import '../theme/app_theme.dart';
-import '../../src/services/api_service.dart';
-import '../../src/models/loan.dart';
+import '../../services/api_service.dart';
+import '../../models/loan.dart';
 
 class PaymentModal extends StatefulWidget {
   final dynamic payment;
@@ -131,10 +129,19 @@ class _PaymentModalState extends State<PaymentModal> {
           throw Exception('El monto no coincide con el monto esperado');
         }
 
-        paymentData['params'].addAll({
-          'paid_amount': totalAmount,
-          'payment_met': _selectedPaymentMethod
-        });
+        if (PaymentMethod.isTransfer(_selectedPaymentMethod)) {
+          paymentData['params'].addAll({
+            'paid_amount_cash': 0.0,
+            'paid_amount_transferencia': totalAmount,
+            'payment_met': _selectedPaymentMethod
+          });
+        } else {
+          paymentData['params'].addAll({
+            'paid_amount_cash': totalAmount,
+            'paid_amount_transferencia': 0.0,
+            'payment_met': _selectedPaymentMethod
+          });
+        }
       }
 
       // Validar que el método de pago sea válido
@@ -414,41 +421,53 @@ class _PaymentModalState extends State<PaymentModal> {
           'Método de pago',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 100,
+          height: 80,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
               _buildPaymentMethodCard(
                 title: 'Efectivo',
                 icon: Icons.payments_outlined,
-                value: PaymentMethod.cash,
+                value: 'cash',
                 color: Colors.green,
               ),
               _buildPaymentMethodCard(
-                title: 'BBVA - PLIN',
+                title: 'BBVA',
                 icon: Icons.account_balance,
-                value: PaymentMethod.bbva,
+                value: 'bbva',
                 color: Colors.blue,
               ),
               _buildPaymentMethodCard(
-                title: 'INTERBANK - PLIN',
+                title: 'INTERBANK',
                 icon: Icons.account_balance,
-                value: PaymentMethod.interbank,
+                value: 'interbank',
                 color: Colors.orange,
               ),
               _buildPaymentMethodCard(
-                title: 'Banco de la Nación',
+                title: 'BN',
                 icon: Icons.account_balance,
-                value: PaymentMethod.bcn,
+                value: 'bcn',
                 color: Colors.red,
+              ),
+              _buildPaymentMethodCard(
+                title: 'PLIN',
+                icon: Icons.phone_android,
+                value: 'plin',
+                color: const Color.fromARGB(255, 39, 130, 176),
+              ),
+              _buildPaymentMethodCard(
+                title: 'YAPE',
+                icon: Icons.phone_android,
+                value: 'yape',
+                color: Colors.deepPurple,
               ),
               _buildPaymentMethodCard(
                 title: 'Mixto',
                 icon: Icons.compare_arrows,
                 value: 'mixto',
-                color: Colors.purple,
+                color: Colors.teal,
               ),
             ],
           ),
@@ -465,15 +484,15 @@ class _PaymentModalState extends State<PaymentModal> {
   }) {
     final isSelected = _selectedPaymentMethod == value;
     return Padding(
-      padding: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.only(right: 8),
       child: InkWell(
         onTap: () => setState(() => _selectedPaymentMethod = value),
         child: Container(
-          width: 120,
-          padding: const EdgeInsets.all(12),
+          width: 90,
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: isSelected ? color.withOpacity(0.1) : Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected ? color : Colors.grey[300]!,
               width: isSelected ? 2 : 1,
@@ -485,18 +504,18 @@ class _PaymentModalState extends State<PaymentModal> {
               Icon(
                 icon,
                 color: isSelected ? color : Colors.grey,
-                size: 32,
+                size: 24,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
                 title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: isSelected ? color : Colors.grey[600],
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ],

@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-import 'package:yatha_app/config/environment.dart';
+import 'package:yatha_app/src/config/environment.dart';
+import 'package:yatha_app/src/services/base_service.dart';
+import 'package:yatha_app/src/utils/logger.dart';
 
-class PagoService {
+class PagoService extends BaseService {
   // URL para emulador Android y dispositivos físicos
-  static const String _baseUrl = Environment.apiUrl;
+  String get _baseUrl => Environment.apiUrl;
 
   // Pago diario simple (cash o transfer)
   Future<Map<String, dynamic>> realizarPagoDiario(
@@ -15,49 +17,24 @@ class PagoService {
     String metodo,
   ) async {
     try {
-      debugPrint('=== INICIO DEL PROCESO DE PAGO SIMPLE ===');
-      debugPrint('ID del pago: $paymentId');
-      debugPrint('Monto a pagar: S/ $monto');
-      debugPrint('Método de pago: $metodo');
+      Logger.info('=== INICIO DEL PROCESO DE PAGO SIMPLE ===');
+      Logger.info('ID del pago: $paymentId');
+      Logger.info('Monto a pagar: S/ $monto');
+      Logger.info('Método de pago: $metodo');
 
       final body = {
         "jsonrpc": "2.0",
         "params": {"id": paymentId, "paid_amount": monto, "payment_met": metodo}
       };
 
-      final url = '$_baseUrl/api/payment/daily/update';
+      final response = await post('/api/payment/daily/update', body: body);
 
-      debugPrint('=== DATOS ENVIADOS ===');
-      debugPrint('URL: $url');
-      debugPrint('Body: ${jsonEncode(body)}');
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
-      );
-
-      debugPrint('=== RESPUESTA DEL SERVIDOR ===');
-      debugPrint('Status Code: ${response.statusCode}');
-      debugPrint('Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Error al realizar el pago: ${response.statusCode}',
-        };
-      }
+      return {
+        'success': true,
+        'data': response,
+      };
     } catch (e) {
-      debugPrint('=== ERROR ===');
-      debugPrint('$e');
+      Logger.error('Error en realizarPagoDiario', e);
       return {
         'success': false,
         'message': 'Error: $e',
@@ -72,10 +49,10 @@ class PagoService {
     double montoTransferencia,
   ) async {
     try {
-      debugPrint('=== INICIO DEL PROCESO DE PAGO MIXTO ===');
-      debugPrint('ID del pago: $paymentId');
-      debugPrint('Monto efectivo: S/ $montoEfectivo');
-      debugPrint('Monto transferencia: S/ $montoTransferencia');
+      Logger.info('=== INICIO DEL PROCESO DE PAGO MIXTO ===');
+      Logger.info('ID del pago: $paymentId');
+      Logger.info('Monto efectivo: S/ $montoEfectivo');
+      Logger.info('Monto transferencia: S/ $montoTransferencia');
 
       final body = {
         "jsonrpc": "2.0",
@@ -87,39 +64,14 @@ class PagoService {
         }
       };
 
-      final url = '$_baseUrl/api/payment/daily/update';
+      final response = await post('/api/payment/daily/update', body: body);
 
-      debugPrint('=== DATOS ENVIADOS ===');
-      debugPrint('URL: $url');
-      debugPrint('Body: ${jsonEncode(body)}');
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
-      );
-
-      debugPrint('=== RESPUESTA DEL SERVIDOR ===');
-      debugPrint('Status Code: ${response.statusCode}');
-      debugPrint('Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'data': data,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Error al realizar el pago: ${response.statusCode}',
-        };
-      }
+      return {
+        'success': true,
+        'data': response,
+      };
     } catch (e) {
-      debugPrint('=== ERROR ===');
-      debugPrint('$e');
+      Logger.error('Error en realizarPagoMixto', e);
       return {
         'success': false,
         'message': 'Error: $e',
@@ -134,11 +86,11 @@ class PagoService {
     String metodo,
   ) async {
     try {
-      debugPrint('=== INICIO DEL PROCESO DE PAGO MENSUAL ===');
-      debugPrint('ID del pago: $paymentId');
-      debugPrint('Interés a pagar: S/ $interes');
-      debugPrint('Capital a pagar: S/ $capital');
-      debugPrint('Método de pago: $metodo');
+      Logger.info('=== INICIO DEL PROCESO DE PAGO MENSUAL ===');
+      Logger.info('ID del pago: $paymentId');
+      Logger.info('Interés a pagar: S/ $interes');
+      Logger.info('Capital a pagar: S/ $capital');
+      Logger.info('Método de pago: $metodo');
 
       if (interes < 0 || capital < 0) {
         throw Exception('Los montos no pueden ser negativos');
@@ -158,73 +110,36 @@ class PagoService {
         }
       };
 
-      final url = '$_baseUrl/api/payment/monthly/update';
-
-      debugPrint('=== DATOS ENVIADOS ===');
-      debugPrint('URL: $url');
-      debugPrint('Body: ${jsonEncode(body)}');
-
-      final response = await http
-          .post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(body),
-      )
-          .timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException(
-            'La conexión ha tardado demasiado. Por favor, inténtelo de nuevo.',
-          );
-        },
+      final response = await post(
+        '/api/payment/monthly/update',
+        body: body,
       );
 
-      debugPrint('=== RESPUESTA DEL SERVIDOR ===');
-      debugPrint('Status Code: ${response.statusCode}');
-      debugPrint('Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data['result'] != null) {
-          debugPrint('=== PAGO EXITOSO ===');
-          debugPrint('Resultado: ${data['result']}');
-          return {
-            'success': true,
-            'message': data['result']['message'] ?? 'Pago realizado con éxito',
-            'data': data['result'],
-          };
-        } else if (data['error'] != null) {
-          debugPrint('=== ERROR EN EL PAGO ===');
-          debugPrint('Error: ${data['error']}');
-          return {
-            'success': false,
-            'message': data['error']['message'] ?? 'Error al realizar el pago',
-            'data': data['error'],
-          };
-        }
-
+      if (response['result'] != null) {
+        Logger.info('=== PAGO EXITOSO ===');
         return {
           'success': true,
-          'message': 'Pago realizado con éxito',
-          'data': data,
+          'message':
+              response['result']['message'] ?? 'Pago realizado con éxito',
+          'data': response['result'],
         };
-      } else {
-        debugPrint('=== ERROR HTTP ===');
-        debugPrint('Status Code: ${response.statusCode}');
-        debugPrint('Body: ${response.body}');
+      } else if (response['error'] != null) {
+        Logger.error('=== ERROR EN EL PAGO ===');
         return {
           'success': false,
-          'message': 'Error al realizar el pago: ${response.statusCode}',
-          'data': null,
+          'message':
+              response['error']['message'] ?? 'Error al realizar el pago',
+          'data': response['error'],
         };
       }
+
+      return {
+        'success': true,
+        'message': 'Pago realizado con éxito',
+        'data': response,
+      };
     } catch (e) {
-      debugPrint('=== ERROR INESPERADO ===');
-      debugPrint('Error: $e');
+      Logger.error('Error en realizarPagoMensual', e);
       return {
         'success': false,
         'message': 'Error inesperado: $e',

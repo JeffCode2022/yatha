@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yatha_app/src/models/user_role.dart';
-import 'package:yatha_app/utils/theme/app_theme.dart';
+import 'package:yatha_app/src/utils/theme/app_theme.dart';
 import 'package:get/get.dart';
 
 class AppDrawer extends StatefulWidget {

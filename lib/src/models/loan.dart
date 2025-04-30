@@ -152,17 +152,23 @@ class PaymentMethod {
   static const String bbva = 'bbva';
   static const String interbank = 'interbank';
   static const String bcn = 'bcn';
+  static const String plin = 'plin';
+  static const String yape = 'yape';
 
   static String getDisplayName(String? method) {
     switch (method?.toLowerCase()) {
       case cash:
         return 'Efectivo';
       case bbva:
-        return 'BBVA - PLIN';
+        return 'BBVA';
       case interbank:
-        return 'INTERBANK - PLIN';
+        return 'INTERBANK';
       case bcn:
-        return 'Transferencia - Banco de la Nación';
+        return 'Banco de la Nación';
+      case plin:
+        return 'PLIN';
+      case yape:
+        return 'YAPE';
       default:
         return 'No especificado';
     }
@@ -170,7 +176,13 @@ class PaymentMethod {
 
   static bool isValid(String? method) {
     if (method == null) return false;
-    return [cash, bbva, interbank, bcn].contains(method.toLowerCase());
+    return [cash, bbva, interbank, bcn, plin, yape]
+        .contains(method.toLowerCase());
+  }
+
+  static bool isTransfer(String? method) {
+    if (method == null) return false;
+    return [bbva, interbank, bcn, plin, yape].contains(method.toLowerCase());
   }
 }
 

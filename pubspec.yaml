@@ -34,6 +34,7 @@ dependencies:
   flutter_launcher_icons: ^0.14.3
   dio: ^5.4.1
   connectivity_plus: ^6.1.4
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -53,6 +54,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - .env
 
 
 
