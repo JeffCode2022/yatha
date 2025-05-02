@@ -156,8 +156,10 @@ class SupervisorService extends BaseService {
           if (timeStatus == 'late') {
             lateCount++;
           }
-        } else if (status == 'paid' || status == 'partial') {
-          if (status == 'paid') {
+        } else if (status == 'paid' ||
+            status == 'partial' ||
+            status == 'overpaid') {
+          if (status == 'paid' || status == 'overpaid' || status == 'partial') {
             completedCount++;
           }
           collectedAmount += paidAmount;

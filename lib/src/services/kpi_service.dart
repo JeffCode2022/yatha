@@ -248,12 +248,12 @@ class KpiService extends BaseService {
         } else {
           counts['pending'] = (counts['pending'] ?? 0) + 1;
         }
-      } else if (status == 'paid') {
+      } else if (status == 'paid' ||
+          status == 'overpaid' ||
+          status == 'partial') {
         counts['completed'] = (counts['completed'] ?? 0) + 1;
       } else if (status == 'cancelled') {
         counts['cancelled'] = (counts['cancelled'] ?? 0) + 1;
-      } else if (status == 'partial') {
-        counts['partial'] = (counts['partial'] ?? 0) + 1;
       }
     }
 

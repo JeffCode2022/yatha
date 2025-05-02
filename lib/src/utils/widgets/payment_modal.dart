@@ -4,12 +4,13 @@ import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../../services/api_service.dart';
 import '../../models/loan.dart';
+import '../../utils/logger.dart';
 
 class PaymentModal extends StatefulWidget {
   final dynamic payment;
   final String paymentPeriod;
   final int uid;
-  final Function() onPaymentComplete;
+  final Function(double paidAmount, String status) onPaymentComplete;
 
   const PaymentModal({
     Key? key,
@@ -77,6 +78,87 @@ class _PaymentModalState extends State<PaymentModal> {
     return paymentDate.weekday == DateTime.sunday;
   }
 
+  void _showErrorMessage(BuildContext context, String message) {
+    OverlayEntry overlayEntry;
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: Material(
+          color: Colors.black.withOpacity(0.2),
+          child: Center(
+            child: TweenAnimationBuilder(
+              duration: const Duration(milliseconds: 200),
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              builder: (context, double value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: child,
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 40,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Error',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(overlayEntry);
+
+    // Remover el mensaje después de 3 segundos
+    Future.delayed(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
+  }
+
   // Procesar pago
   Future<void> _processPayment() async {
     if (!_formKey.currentState!.validate()) return;
@@ -95,6 +177,36 @@ class _PaymentModalState extends State<PaymentModal> {
       _isProcessing = true;
     });
 
+    // Mostrar diálogo de procesamiento
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text(
+                  'Procesando pago...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
     try {
       final expectedAmount = widget.payment['payment_amount'] ?? 0.0;
       double totalAmount = 0.0;
@@ -107,15 +219,16 @@ class _PaymentModalState extends State<PaymentModal> {
         }
       };
 
+      // Validar que el método de pago sea válido
+      if (!PaymentMethod.isValid(_selectedPaymentMethod)) {
+        throw Exception('Método de pago no válido: ${_selectedPaymentMethod}');
+      }
+
       if (_selectedPaymentMethod == 'mixto') {
         final cashAmount = double.tryParse(_cashAmountController.text) ?? 0.0;
         final transferAmount =
             double.tryParse(_transferAmountController.text) ?? 0.0;
         totalAmount = cashAmount + transferAmount;
-
-        if ((totalAmount - expectedAmount).abs() > 0.01) {
-          throw Exception('El monto total no coincide con el monto esperado');
-        }
 
         paymentData['params'].addAll({
           'paid_amount_cash': cashAmount,
@@ -125,30 +238,58 @@ class _PaymentModalState extends State<PaymentModal> {
       } else {
         totalAmount = double.tryParse(_amountController.text) ?? 0.0;
 
-        if ((totalAmount - expectedAmount).abs() > 0.01) {
-          throw Exception('El monto no coincide con el monto esperado');
+        // Validar que el monto no sea cero
+        if (totalAmount <= 0) {
+          throw Exception('El monto debe ser mayor a cero');
         }
 
         if (PaymentMethod.isTransfer(_selectedPaymentMethod)) {
           paymentData['params'].addAll({
             'paid_amount_cash': 0.0,
             'paid_amount_transferencia': totalAmount,
-            'payment_met': _selectedPaymentMethod
+            'payment_met': _selectedPaymentMethod,
+            'payment_type': 'transfer',
+            'transfer_details': {
+              'method': _selectedPaymentMethod,
+              'amount': totalAmount,
+              'status': totalAmount == expectedAmount
+                  ? 'paid'
+                  : totalAmount > expectedAmount
+                      ? 'overpaid'
+                      : 'partial'
+            }
           });
         } else {
           paymentData['params'].addAll({
             'paid_amount_cash': totalAmount,
             'paid_amount_transferencia': 0.0,
-            'payment_met': _selectedPaymentMethod
+            'payment_met': 'cash'
           });
         }
       }
 
-      // Validar que el método de pago sea válido
-      if (!PaymentMethod.isValid(_selectedPaymentMethod) &&
-          _selectedPaymentMethod != 'mixto') {
-        throw Exception('Método de pago no válido');
+      // Determinar el estado del pago según el monto
+      final roundedTotalAmount = (totalAmount * 100).round() / 100;
+      final roundedExpectedAmount = (expectedAmount * 100).round() / 100;
+
+      Logger.info('Monto pagado (redondeado): $roundedTotalAmount');
+      Logger.info('Monto esperado (redondeado): $roundedExpectedAmount');
+      Logger.info('Método de pago: ${_selectedPaymentMethod}');
+
+      // Usar una diferencia máxima permitida de 0.01 para considerar montos iguales
+      final difference = (roundedTotalAmount - roundedExpectedAmount).abs();
+      if (difference <= 0.01) {
+        paymentData['params']['payment_status'] = 'paid';
+      } else if (roundedTotalAmount < roundedExpectedAmount) {
+        paymentData['params']['payment_status'] = 'partial';
+      } else {
+        paymentData['params']['payment_status'] = 'overpaid';
       }
+
+      Logger.info(
+          'Estado del pago determinado: ${paymentData['params']['payment_status']}');
+      Logger.info('Diferencia calculada: $difference');
+      Logger.info('Enviando pago con datos: ${paymentData['params']}');
 
       final resultado = await _apiService.registerPayment(
         widget.uid,
@@ -156,39 +297,111 @@ class _PaymentModalState extends State<PaymentModal> {
         paymentData,
       );
 
-      if (mounted) {
-        if (resultado.containsKey('error')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(resultado['error'] ?? 'Error al registrar pago'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  'Pago registrado con éxito por ${PaymentMethod.getDisplayName(_selectedPaymentMethod)}'),
-              backgroundColor: Colors.green,
-            ),
+      // Cerrar el diálogo de procesamiento
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      if (!mounted) return;
+
+      // Verificar si hay error en la respuesta
+      if (resultado.containsKey('error')) {
+        _showErrorMessage(
+            context, resultado['error'] ?? 'Error al registrar pago');
+        return;
+      }
+
+      // Verificar el estado del pago después del registro
+      final verificationResponse = await _apiService.getLoanPayments(
+        widget.uid,
+        widget.payment['id'].toString(),
+      );
+
+      if (verificationResponse.containsKey('error')) {
+        Logger.warning(
+            'No se pudo verificar el estado del pago: ${verificationResponse['error']}');
+      } else {
+        final payments = verificationResponse['result'] as List?;
+        if (payments != null && payments.isNotEmpty) {
+          final payment = payments.firstWhere(
+            (p) => p['id'] == widget.payment['id'],
+            orElse: () => null,
           );
 
-          await Future.delayed(const Duration(milliseconds: 500));
+          if (payment != null) {
+            // Obtener el monto pagado y el estado
+            double paidAmount = 0.0;
 
-          if (mounted) {
-            Navigator.pop(context);
-            widget.onPaymentComplete();
+            if (_selectedPaymentMethod == 'mixto') {
+              final cashAmount =
+                  (payment['paid_amount_cash'] ?? 0.0).toDouble();
+              final transferAmount =
+                  (payment['paid_amount_transferencia'] ?? 0.0).toDouble();
+              paidAmount = cashAmount + transferAmount;
+            } else if (PaymentMethod.isTransfer(_selectedPaymentMethod)) {
+              paidAmount =
+                  (payment['paid_amount_transferencia'] ?? 0.0).toDouble();
+            } else {
+              paidAmount = (payment['paid_amount_cash'] ?? 0.0).toDouble();
+            }
+
+            final status =
+                payment['payment_status']?.toString().toLowerCase() ??
+                    'pending';
+            widget.onPaymentComplete(paidAmount, status);
+            return;
           }
         }
       }
+
+      // Si no se pudo verificar, usar los datos del registro original
+      double paidAmount = totalAmount;
+      String status = paymentData['params']['payment_status'];
+      widget.onPaymentComplete(paidAmount, status);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al registrar pago: $e'),
-            backgroundColor: Colors.red,
-          ),
+      // Cerrar el diálogo de procesamiento
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      if (!mounted) return;
+      _showErrorMessage(context, e.toString());
+
+      // Verificar si el pago se registró a pesar del error
+      try {
+        final verificationResponse = await _apiService.getLoanPayments(
+          widget.uid,
+          widget.payment['id'].toString(),
         );
+
+        if (!verificationResponse.containsKey('error')) {
+          final payments = verificationResponse['result'] as List?;
+          if (payments != null && payments.isNotEmpty) {
+            final payment = payments.firstWhere(
+              (p) => p['id'] == widget.payment['id'],
+              orElse: () => null,
+            );
+
+            if (payment != null &&
+                payment['payment_status']?.toString().toLowerCase() !=
+                    'pending') {
+              // El pago se registró exitosamente a pesar del error
+              double paidAmount = 0.0;
+              if (payment['payment_met'] == 'mixto') {
+                paidAmount = ((payment['paid_amount_cash'] ?? 0.0) +
+                        (payment['paid_amount_transferencia'] ?? 0.0))
+                    .toDouble();
+              } else {
+                paidAmount = (payment['paid_amount'] ?? 0.0).toDouble();
+              }
+              widget.onPaymentComplete(
+                paidAmount,
+                payment['payment_status'].toString().toLowerCase(),
+              );
+            }
+          }
+        }
+      } catch (verificationError) {
+        Logger.error(
+            'Error al verificar el estado del pago', verificationError);
       }
     } finally {
       if (mounted) {
@@ -197,6 +410,26 @@ class _PaymentModalState extends State<PaymentModal> {
         });
       }
     }
+  }
+
+  String _buildSuccessMessage(
+      Map<String, dynamic> resultado, String paymentMethod) {
+    final List<String> messages = [];
+
+    messages.add(
+        'Pago registrado con éxito por ${PaymentMethod.getDisplayName(paymentMethod)}');
+
+    if (resultado['data']?['difference'] != null &&
+        resultado['data']['difference'] > 0.01) {
+      messages.add(
+          'Pago excedido: S/.${resultado['data']['difference'].toStringAsFixed(2)} más que el monto esperado');
+    }
+
+    if (resultado.containsKey('warning')) {
+      messages.add(resultado['warning']);
+    }
+
+    return messages.join('\n');
   }
 
   void _updateMixedPaymentAmounts(String value, bool isCash) {
@@ -224,6 +457,66 @@ class _PaymentModalState extends State<PaymentModal> {
 
   @override
   Widget build(BuildContext context) {
+    final paymentStatus =
+        widget.payment['payment_status']?.toString().toLowerCase() ?? 'pending';
+    final bool isPaymentBlocked = paymentStatus == 'paid' ||
+        paymentStatus == 'overpaid' ||
+        paymentStatus == 'partial';
+
+    if (isPaymentBlocked) {
+      return Container(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        decoration: const BoxDecoration(color: Colors.transparent),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  color: Colors.green,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Este pago ya ha sido registrado',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Estado: ${_getStatusText(paymentStatus)}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cerrar'),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -295,6 +588,42 @@ class _PaymentModalState extends State<PaymentModal> {
                           color: AppTheme.colorScheme.primary,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Estado: ${_getPaymentStatusText(paymentStatus)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _getPaymentStatusColor(paymentStatus),
+                        ),
+                      ),
+                      if (isPaymentBlocked) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle,
+                                  color: Colors.green, size: 16),
+                              SizedBox(width: 4),
+                              Text(
+                                'Pago ya realizado',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       if (!_isToday) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -383,7 +712,9 @@ class _PaymentModalState extends State<PaymentModal> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _isProcessing ? null : _processPayment,
+                        onPressed: isPaymentBlocked
+                            ? null
+                            : (_isProcessing ? null : _processPayment),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           backgroundColor: AppTheme.colorScheme.primary,
@@ -400,7 +731,9 @@ class _PaymentModalState extends State<PaymentModal> {
                                   ),
                                 ),
                               )
-                            : const Text('Registrar Pago'),
+                            : Text(isPaymentBlocked
+                                ? 'Pago Completado'
+                                : 'Registrar Pago'),
                       ),
                     ),
                   ],
@@ -840,9 +1173,6 @@ class _PaymentModalState extends State<PaymentModal> {
               if (amount <= 0) {
                 return 'El monto debe ser mayor a cero';
               }
-              if ((amount - expectedAmount).abs() > 0.01) {
-                return 'El monto debe ser S/. ${expectedAmount.toStringAsFixed(2)}';
-              }
               return null;
             },
           ),
@@ -854,5 +1184,46 @@ class _PaymentModalState extends State<PaymentModal> {
     double interest = double.tryParse(_interestController.text) ?? 0;
     double capital = double.tryParse(_capitalController.text) ?? 0;
     return interest + capital;
+  }
+
+  String _getPaymentStatusText(String status) {
+    switch (status) {
+      case 'paid':
+        return 'Pagado';
+      case 'partial':
+        return 'Pago Parcial';
+      case 'overpaid':
+        return 'Pago Excedido';
+      case 'pending':
+        return 'Pendiente';
+      default:
+        return 'Desconocido';
+    }
+  }
+
+  Color _getPaymentStatusColor(String status) {
+    switch (status) {
+      case 'paid':
+      case 'partial':
+      case 'overpaid':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'paid':
+        return 'Pagado';
+      case 'overpaid':
+        return 'Pago Excedido';
+      case 'partial':
+        return 'Pago Parcial';
+      default:
+        return 'Estado desconocido';
+    }
   }
 }

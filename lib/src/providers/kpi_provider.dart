@@ -115,7 +115,9 @@ class KpiProvider extends ChangeNotifier {
         for (var payment in _payments) {
           if (payment['timeStatus'] == 'ontime' &&
               (payment['status'] == 'paid' ||
-                  payment['status'] == 'completed')) {
+                  payment['status'] == 'completed' ||
+                  payment['status'] == 'overpaid' ||
+                  payment['status'] == 'partial')) {
             ontimeCount++;
           }
         }
@@ -240,6 +242,7 @@ class KpiProvider extends ChangeNotifier {
       return paymentMethod ? 'Efectivo' : 'Transferencia';
     }
     if (paymentMethod is String) {
+      if (paymentMethod == 'mixto') return 'Mixto';
       return paymentMethod;
     }
     return 'No especificado';
@@ -262,8 +265,22 @@ class KpiProvider extends ChangeNotifier {
       'value': 'S/.${(payment['expectedAmount'] ?? 0.0).toStringAsFixed(2)}',
     });
 
+    // Si es pago mixto, mostrar el desglose
+    if (payment['paymentMet'] == 'mixto') {
+      details.add({
+        'label': 'Efectivo',
+        'value':
+            'S/.${(payment['paid_amount_cash'] ?? 0.0).toStringAsFixed(2)}',
+      });
+      details.add({
+        'label': 'Transferencia',
+        'value':
+            'S/.${(payment['paid_amount_transferencia'] ?? 0.0).toStringAsFixed(2)}',
+      });
+    }
+
     details.add({
-      'label': 'Monto pagado',
+      'label': 'Monto total pagado',
       'value': 'S/.${(payment['paidAmount'] ?? 0.0).toStringAsFixed(2)}',
     });
 

@@ -175,32 +175,25 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
       final marker = Marker(
         point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
         width: 120,
-        height: 120,
+        height: 70,
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.blue[600]!,
-                    Colors.blue[400]!,
-                  ],
-                ),
+                color: Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: const Icon(
-                Icons.person_pin_circle,
-                color: Colors.white,
+                Icons.location_on,
+                color: Colors.blue,
                 size: 24,
               ),
             ),
@@ -275,77 +268,40 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
         if (lat != 0 && lng != 0) {
           final marker = Marker(
             point: LatLng(lat, lng),
-            width: 120,
-            height: 120,
+            width: 150,
+            height: 80,
             child: GestureDetector(
               onTap: () => _showPrestamoDetails(prestamo),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.green[600]!,
-                          Colors.green[400]!,
-                        ],
-                      ),
+                      color: Colors.white,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.green.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        const Icon(
-                          Icons.location_on,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        Positioned(
-                          right: -4,
-                          bottom: -4,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.green,
-                                width: 2,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.person,
-                              color: Colors.green[600],
-                              size: 12,
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: const Icon(
+                      Icons.person_pin,
+                      color: Colors.green,
+                      size: 24,
                     ),
                   ),
                   Container(
                     margin: const EdgeInsets.only(top: 4),
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    constraints: const BoxConstraints(maxWidth: 120),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white,
-                          Colors.white.withOpacity(0.9),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
@@ -354,18 +310,30 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                         ),
                       ],
                     ),
-                    child: Text(
-                      prestamo['partner_id'] != null &&
-                              prestamo['partner_id'] is List
-                          ? prestamo['partner_id'][1]
-                          : 'Sin nombre',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green[700],
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          prestamo['partner_id'] != null &&
+                                  prestamo['partner_id'] is List
+                              ? prestamo['partner_id'][1]
+                              : 'Sin nombre',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'S/. ${(prestamo['amount'] ?? 0.0).toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -430,25 +398,72 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(prestamo['name']),
+        title: Row(
+          children: [
+            const Icon(Icons.person, color: Colors.green),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                prestamo['partner_id'] != null && prestamo['partner_id'] is List
+                    ? prestamo['partner_id'][1]
+                    : 'Sin nombre',
+                style: const TextStyle(fontSize: 18),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Cliente: ${prestamo['partner_id'][1]}'),
-            const SizedBox(height: 8),
             Text(
-              'Fecha de cobro: ${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}',
+              'Préstamo: ${prestamo['name']}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Monto a cobrar: S/. ${(prestamo['amount'] ?? 0.0).toStringAsFixed(2)}',
               style: const TextStyle(
                 color: Colors.green,
                 fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Fecha de cobro: ${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _openInMaps(position),
-              icon: const Icon(Icons.directions),
-              label: const Text('Abrir en Maps'),
+            const Text(
+              'Dirección:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(prestamo['partner_address'] ?? 'No disponible'),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _openInMaps(position),
+                icon: const Icon(Icons.directions),
+                label: const Text('Abrir en Maps'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -522,6 +537,58 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
             ),
             MarkerLayer(markers: _markers),
           ],
+        ),
+        // Botones de zoom
+        Positioned(
+          right: 16,
+          bottom: 100,
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.zoom_in),
+                      onPressed: () {
+                        final currentZoom = _mapController.camera.zoom;
+                        _mapController.move(
+                          _mapController.camera.center,
+                          currentZoom + 1,
+                        );
+                      },
+                      tooltip: 'Acercar',
+                    ),
+                    Container(
+                      height: 1,
+                      color: Colors.grey[300],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.zoom_out),
+                      onPressed: () {
+                        final currentZoom = _mapController.camera.zoom;
+                        _mapController.move(
+                          _mapController.camera.center,
+                          currentZoom - 1,
+                        );
+                      },
+                      tooltip: 'Alejar',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         if (_isLoading || !_isMapReady)
           BackdropFilter(

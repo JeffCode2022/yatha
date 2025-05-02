@@ -80,23 +80,109 @@ class ClienteService extends BaseService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> obtenerClientes({DateTime? fecha}) async {
+  Future<List<Map<String, dynamic>>> obtenerClientes({
+    DateTime? fecha,
+  }) async {
     try {
-      final fechaConsulta = fecha ?? DateTime.now();
-      Logger.info(
-          'Iniciando consulta para fecha: ${DateUtils.formatDate(fechaConsulta)}');
+      final formattedDate = fecha != null
+          ? '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}'
+          : '';
 
-      final prestamos = await obtenerPrestamosPorFecha(fechaConsulta);
-      if (prestamos.isEmpty) {
-        Logger.info('No se encontraron préstamos para la fecha');
+      // Primero obtenemos los pagos
+      final response = await executeOdooMethod(
+        model: 'loan.payment',
+        method: 'search_read',
+        args: [
+          [
+            ['payment_date', '=', formattedDate],
+            ['payment_status', '=', 'pending']
+          ],
+          [
+            'id',
+            'name',
+            'payment_date',
+            'payment_amount',
+            'partner_id',
+            'loan_id', // Agregamos loan_id para obtener el préstamo asociado
+          ]
+        ],
+      );
+
+      if (response.containsKey('error')) {
+        throw Exception(response['error']);
+      }
+
+      final List<Map<String, dynamic>> pagos =
+          List<Map<String, dynamic>>.from(response['result'] ?? []);
+
+      // Si no hay pagos, retornamos lista vacía
+      if (pagos.isEmpty) {
         return [];
       }
 
-      final coordenadas = await obtenerCoordenadas(prestamos);
-      Logger.info('Coordenadas obtenidas: ${coordenadas.length}');
-      return coordenadas;
+      // Obtenemos los IDs de los préstamos
+      final loanIds = pagos
+          .map((pago) => pago['loan_id'][0])
+          .where((id) => id != null)
+          .toSet()
+          .toList();
+
+      // Obtenemos los datos de los préstamos
+      final prestamosResponse = await executeOdooMethod(
+        model: 'loan.management',
+        method: 'search_read',
+        args: [
+          [
+            ['id', 'in', loanIds]
+          ],
+          ['id', 'partner_latitude', 'partner_longitude', 'partner_address']
+        ],
+      );
+
+      if (prestamosResponse.containsKey('error')) {
+        throw Exception(prestamosResponse['error']);
+      }
+
+      final prestamos = Map<int, Map<String, dynamic>>.fromIterable(
+        List<Map<String, dynamic>>.from(prestamosResponse['result'] ?? []),
+        key: (prestamo) => prestamo['id'],
+        value: (prestamo) => prestamo,
+      );
+
+      // Combinamos la información
+      final clientes = pagos.map((pago) {
+        final loanId = pago['loan_id'][0];
+        final prestamo = prestamos[loanId] ?? {};
+
+        // Obtener y validar el monto
+        var montoRaw = pago['payment_amount'];
+        double monto;
+        if (montoRaw is int) {
+          monto = montoRaw.toDouble();
+        } else if (montoRaw is double) {
+          monto = montoRaw;
+        } else {
+          monto = double.tryParse(montoRaw?.toString() ?? '0') ?? 0.0;
+        }
+
+        // Redondear a 2 decimales
+        monto = (monto * 100).round() / 100;
+
+        return {
+          'id': pago['id'],
+          'name': pago['name'],
+          'payment_date': pago['payment_date'],
+          'partner_id': pago['partner_id'],
+          'amount': monto,
+          'partner_latitude': prestamo['partner_latitude'] ?? 0.0,
+          'partner_longitude': prestamo['partner_longitude'] ?? 0.0,
+          'partner_address': prestamo['partner_address'],
+        };
+      }).toList();
+
+      return clientes;
     } catch (e) {
-      Logger.error('Error en obtenerClientes', e);
+      print('Error al obtener clientes: $e');
       rethrow;
     }
   }

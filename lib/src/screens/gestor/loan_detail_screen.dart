@@ -248,21 +248,29 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
     print('\n=== Información del préstamo ===');
     print('Monto total del préstamo: $amount');
 
+    // Obtener el total_amount del primer pago (todos tienen el mismo valor)
+    final totalAmount = payments.isNotEmpty
+        ? (payments[0]['total_amount'] ?? amount).toDouble()
+        : amount;
     final totalCollected = _calculateTotalCollected(payments);
-    final remainingAmount = amount - totalCollected;
+    final remainingAmount = totalAmount - totalCollected;
 
-    // Contar solo pagos realmente pendientes o atrasados
-    final pendingInstallments = payments
-        .where((p) =>
-            p['payment_status'] == 'pending' || p['payment_status'] == 'late')
-        .length;
-
-    // Contar solo pagos completados
-    final paidInstallments =
-        payments.where((p) => p['payment_status'] == 'paid').length;
-
+    print('Monto total a pagar (total_amount): $totalAmount');
     print('Monto recaudado calculado: $totalCollected');
     print('Monto pendiente calculado: $remainingAmount');
+
+    // Contar pagos según su estado
+    final pendingInstallments = payments
+        .where(
+            (p) => p['payment_status']?.toString().toLowerCase() == 'pending')
+        .length;
+
+    // Contar pagos completados (paid), excedidos (overpaid) y parciales (partial)
+    final paidInstallments = payments.where((p) {
+      final status = p['payment_status']?.toString().toLowerCase() ?? 'pending';
+      return status == 'paid' || status == 'overpaid' || status == 'partial';
+    }).length;
+
     print('Cuotas pendientes: $pendingInstallments');
     print('Cuotas pagadas: $paidInstallments');
     print('=== Fin información ===\n');
@@ -574,29 +582,134 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
     int? uid,
   ) {
     final paymentDate = payment['payment_date'] ?? 'Sin fecha';
-    final paymentAmount = payment['payment_amount'] ?? 0.0;
+    final paymentAmount =
+        ((payment['payment_amount'] ?? 0.0) * 100).round() / 100;
     final status = payment['payment_status'] ?? 'pending';
-    final isPaid = status == 'paid';
+    final paymentMethod = payment['payment_met'] ?? '';
+    final isPaid =
+        status == 'paid' || status == 'overpaid' || status == 'partial';
+
+    // Calcular el monto pagado total y el estado
+    double paidAmount = 0.0;
+    String paymentStatus = status;
+
+    if (isPaid) {
+      if (paymentMethod == 'mixto') {
+        final cashAmount =
+            ((payment['paid_amount_cash'] ?? 0.0) * 100).round() / 100;
+        final transferAmount =
+            ((payment['paid_amount_transferencia'] ?? 0.0) * 100).round() / 100;
+        paidAmount = ((cashAmount + transferAmount) * 100).round() / 100;
+      } else {
+        paidAmount = ((payment['paid_amount'] ?? 0.0) * 100).round() / 100;
+      }
+
+      // Recalcular el estado basado en el monto pagado
+      if ((paidAmount - paymentAmount).abs() <= 0.01) {
+        paymentStatus = 'paid';
+      } else if (paidAmount > paymentAmount) {
+        paymentStatus = 'overpaid';
+      } else {
+        paymentStatus = 'partial';
+      }
+    }
 
     // Convertir status a texto y color
     String statusText;
     Color statusColor;
-    switch (status) {
+    IconData statusIcon;
+
+    switch (paymentStatus.toLowerCase()) {
       case 'paid':
         statusText = 'Pagado';
         statusColor = Colors.green;
+        statusIcon = Icons.check_circle_outline;
+        break;
+      case 'overpaid':
+        statusText = 'Pago Excedido';
+        statusColor = Colors.blue;
+        statusIcon = Icons.check_circle_outline;
+        break;
+      case 'partial':
+        statusText = 'Pago Parcial';
+        statusColor = Colors.orange;
+        statusIcon = Icons.warning_outlined;
         break;
       case 'on_time':
         statusText = 'Pendiente';
         statusColor = Colors.orange;
+        statusIcon = Icons.warning_outlined;
         break;
       case 'late':
         statusText = 'Atrasado';
         statusColor = Colors.red;
+        statusIcon = Icons.warning_outlined;
         break;
       default:
         statusText = 'Pendiente';
         statusColor = Colors.orange;
+        statusIcon = Icons.warning_outlined;
+    }
+
+    // Construir el texto del monto pagado para pagos mixtos
+    List<Widget> paymentInfo = [];
+    if (paymentMethod == 'mixto') {
+      if (isPaid) {
+        final cashAmount =
+            ((payment['paid_amount_cash'] ?? 0.0) * 100).round() / 100;
+        final transferAmount =
+            ((payment['paid_amount_transferencia'] ?? 0.0) * 100).round() / 100;
+        paymentInfo = [
+          Text(
+            'Efectivo',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'S/.${cashAmount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: statusColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Transferencia',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'S/.${transferAmount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: statusColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ];
+      } else {
+        final expectedAmount =
+            ((payment['payment_amount'] ?? 0.0) * 100).round() / 100;
+        paymentInfo = [
+          Text(
+            'S/.${expectedAmount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ];
+      }
     }
 
     return Card(
@@ -617,17 +730,17 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isPaid
-                    ? Colors.green.withOpacity(0.1)
+                    ? statusColor.withOpacity(0.1)
                     : Colors.grey.withOpacity(0.1),
                 border: Border.all(
                   color: isPaid
-                      ? Colors.green.withOpacity(0.3)
+                      ? statusColor.withOpacity(0.3)
                       : Colors.grey.withOpacity(0.3),
                 ),
               ),
               child: Center(
                 child: isPaid
-                    ? const Icon(Icons.check, color: Colors.green, size: 16)
+                    ? Icon(Icons.check, color: statusColor, size: 16)
                     : Text(
                         (payment['name'] ?? '').toString().split('/').last,
                         style: TextStyle(
@@ -678,14 +791,32 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'S/.${paymentAmount.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
+                      if (isPaid && paymentMethod == 'mixto') ...[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: paymentInfo,
+                          ),
                         ),
-                      ),
+                      ] else if (isPaid) ...[
+                        Text(
+                          'S/.${paidAmount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: statusColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ] else ...[
+                        Text(
+                          'S/.${((payment['payment_amount'] ?? 0.0) * 100).round() / 100.0}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -736,14 +867,168 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => PaymentModal(
+      builder: (BuildContext modalContext) => PaymentModal(
         payment: payment,
         paymentPeriod: paymentPeriod,
         uid: uid,
-        onPaymentComplete: () {
+        onPaymentComplete: (double paidAmount, String status) {
+          // Cerrar el modal de pago primero
+          Navigator.pop(modalContext);
+
+          if (!modalContext.mounted) return;
+
+          // Mostrar mensaje de éxito
+          _showSuccessMessage(
+            modalContext,
+            paidAmount.toStringAsFixed(2),
+            payment['payment_amount']?.toStringAsFixed(2) ?? '0.00',
+            payment['name'] ?? '',
+            status,
+          );
+
           // Recargar pagos después de registrar uno
           _loadLoanPayments();
         },
+      ),
+    );
+  }
+
+  void _showSuccessMessage(BuildContext context, String paidAmount,
+      String expectedAmount, String cuota, String status) {
+    OverlayEntry overlayEntry;
+
+    // Determinar el color y mensaje según el estado
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+
+    switch (status.toLowerCase()) {
+      case 'paid':
+        statusColor = Colors.green;
+        statusText = '¡Pago Completo!';
+        statusIcon = Icons.check_circle_outline;
+        break;
+      case 'overpaid':
+        statusColor = Colors.green;
+        statusText = '¡Pago Excedido!';
+        statusIcon = Icons.check_circle_outline;
+        break;
+      case 'partial':
+        statusColor = Colors.orange;
+        statusText = 'Pago Parcial';
+        statusIcon = Icons.warning_outlined;
+        break;
+      default:
+        statusColor = Colors.green;
+        statusText = '¡Pago Exitoso!';
+        statusIcon = Icons.check_circle_outline;
+    }
+
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: Material(
+          color: Colors.black.withOpacity(0.2),
+          child: Center(
+            child: TweenAnimationBuilder(
+              duration: const Duration(milliseconds: 200),
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              builder: (context, double value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: child,
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 40),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      statusIcon,
+                      color: statusColor,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildPaymentInfoRow(
+                        'Monto esperado:', 'S/. $expectedAmount'),
+                    const SizedBox(height: 8),
+                    _buildPaymentInfoRow('Monto pagado:', 'S/. $paidAmount',
+                        valueColor: double.parse(paidAmount) >
+                                double.parse(expectedAmount)
+                            ? Colors.blue
+                            : double.parse(paidAmount) <
+                                    double.parse(expectedAmount)
+                                ? Colors.orange
+                                : Colors.green),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Cuota: $cuota',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(overlayEntry);
+
+    // Remover el mensaje después de 3 segundos
+    Future.delayed(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
+  }
+
+  Widget _buildPaymentInfoRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[600],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: valueColor ?? Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -756,22 +1041,40 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
     print('Número total de pagos: ${payments.length}');
 
     for (var payment in payments) {
-      final status = payment['payment_status'] ?? 'pending';
-      final paymentAmount = (payment['payment_amount'] ?? 0.0).toDouble();
+      final status =
+          payment['payment_status']?.toString().toLowerCase() ?? 'pending';
+      double paidAmount = 0.0;
 
-      print('\nPago ID: ${payment['name']}');
-      print('Estado: $status');
-      print('Monto de cuota: $paymentAmount');
+      if (status == 'paid' || status == 'overpaid' || status == 'partial') {
+        // Si es pago mixto, sumar ambos montos
+        if (payment['payment_met'] == 'mixto') {
+          final cashAmount =
+              ((payment['paid_amount_cash'] ?? 0.0) * 100).round() / 100;
+          final transferAmount =
+              ((payment['paid_amount_transferencia'] ?? 0.0) * 100).round() /
+                  100;
+          paidAmount = cashAmount + transferAmount;
+        } else {
+          paidAmount = ((payment['paid_amount'] ?? 0.0) * 100).round() / 100;
+        }
 
-      // Solo contar pagos completados
-      if (status == 'paid') {
-        total += paymentAmount;
-        print('Sumando al total: $paymentAmount');
+        print('\nPago ID: ${payment['name']}');
+        print('Estado: $status');
+        print('Monto pagado (redondeado): $paidAmount');
+        print('Monto de cuota: ${payment['payment_amount']}');
+
+        total = ((total + paidAmount) * 100).round() / 100;
+        print('Sumando al total: $paidAmount');
         print('Total acumulado: $total');
+      } else {
+        print('\nPago ID: ${payment['name']}');
+        print('Estado: $status');
+        print('Monto pagado: $paidAmount');
+        print('Monto de cuota: ${payment['payment_amount']}');
       }
     }
 
-    print('\nTotal final recaudado: $total');
+    print('\nTotal final recaudado (redondeado): $total');
     print('=== Fin de cálculo ===\n');
     return total;
   }

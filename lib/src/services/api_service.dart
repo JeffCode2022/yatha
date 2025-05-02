@@ -4,6 +4,7 @@ import 'package:yatha_app/src/config/environment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yatha_app/src/services/base_service.dart';
 import 'package:yatha_app/src/utils/logger.dart';
+import '../models/loan.dart';
 
 class ApiService extends BaseService {
   String get baseUrl => Environment.apiUrl;
@@ -341,6 +342,8 @@ class ApiService extends BaseService {
   // Función para obtener los pagos de un préstamo
   Future<Map<String, dynamic>> getLoanPayments(int uid, String loanId) async {
     try {
+      Logger.info('Obteniendo pagos para préstamo: $loanId');
+
       final queryFilters = [
         ["loan_id", "=", loanId]
       ];
@@ -369,6 +372,8 @@ class ApiService extends BaseService {
         "current_due",
         "payment_amount",
         "paid_amount",
+        "paid_amount_cash",
+        "paid_amount_transferencia",
         "loan_profit",
         "loan_capital",
         "interest_paid",
@@ -383,13 +388,18 @@ class ApiService extends BaseService {
       );
 
       if (response['result'] != null) {
+        Logger.info('Pagos encontrados: ${response['result'].length}');
+        if (response['result'].isEmpty) {
+          Logger.warning('No se encontraron pagos para el préstamo $loanId');
+        }
         return response;
       }
 
-      throw Exception('Error al obtener pagos');
+      Logger.error('Error al obtener pagos: respuesta inválida', response);
+      throw Exception('Error al obtener pagos: respuesta inválida');
     } catch (e) {
       Logger.error('Error en getLoanPayments', e);
-      return {'error': 'Error de conexión: $e'};
+      return {'error': 'Error al obtener pagos: $e'};
     }
   }
 
@@ -402,51 +412,142 @@ class ApiService extends BaseService {
     try {
       Logger.info('Registrando pago: $paymentData');
 
-      // Asegurarse de que el JSON tenga el formato correcto según el método de pago
       final params = paymentData['params'];
-      if (params['payment_met'] == 'mixto') {
-        // Para pagos mixtos, asegurarse de que los montos estén presentes
-        params['paid_amount_cash'] = params['paid_amount_cash'] ?? 0.0;
-        params['paid_amount_transferencia'] =
-            params['paid_amount_transferencia'] ?? 0.0;
 
-        // Calcular el monto total para la verificación
-        params['paid_amount'] =
-            (params['paid_amount_cash'] + params['paid_amount_transferencia'])
-                .toDouble();
-      } else {
-        // Para pagos en efectivo o transferencia
-        params['paid_amount'] = params['paid_amount'] ??
-            params['paid_amount_cash'] ??
-            params['paid_amount_transferencia'] ??
-            0.0;
+      // Asegurarse de que los campos necesarios estén presentes y redondear a 2 decimales
+      params['paid_amount_cash'] =
+          ((params['paid_amount_cash'] ?? 0.0) * 100).round() / 100;
+      params['paid_amount_transferencia'] =
+          ((params['paid_amount_transferencia'] ?? 0.0) * 100).round() / 100;
 
-        // Eliminar campos innecesarios para pagos no mixtos
-        params.remove('paid_amount_cash');
-        params.remove('paid_amount_transferencia');
+      // Calcular el monto total para la verificación
+      final totalAmount =
+          ((params['paid_amount_cash'] + params['paid_amount_transferencia']) *
+                      100)
+                  .round() /
+              100;
+      params['paid_amount'] = totalAmount;
+
+      // Determinar el estado del pago basado en el monto total
+      final expectedAmount = params['payment_amount'] ?? 0.0;
+      final difference = ((totalAmount - expectedAmount) * 100).round() / 100;
+
+      if (!params.containsKey('payment_status')) {
+        params['payment_status'] = difference == 0
+            ? 'paid'
+            : difference > 0
+                ? 'overpaid'
+                : 'partial';
       }
 
+      // Asegurarse de que el método de pago sea válido
+      if (!PaymentMethod.isValid(params['payment_met'])) {
+        throw Exception('Método de pago no válido: ${params['payment_met']}');
+      }
+
+      // Si es un método de transferencia, asegurarse de que se maneje como tal
+      if (PaymentMethod.isTransfer(params['payment_met'])) {
+        params['payment_type'] = 'transfer';
+      }
+
+      Logger.info('Enviando pago al servidor con datos: $params');
       final response =
           await post('/api/payment/daily/update', body: paymentData);
 
       if (response.containsKey('error')) {
+        Logger.error('Error en la respuesta del servidor', response['error']);
         return {'error': response['error']['message'] ?? 'Error desconocido'};
       }
 
       // Esperar un momento para que el backend procese el pago
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 1500));
 
-      // Intentar obtener el estado actualizado del pago
-      final verificationResponse =
-          await getLoanPayments(uid, paymentId.toString());
+      try {
+        // Intentar obtener el estado actualizado del pago
+        final verificationResponse =
+            await getLoanPayments(uid, paymentId.toString());
 
-      if (verificationResponse.containsKey('error')) {
+        if (verificationResponse.containsKey('error')) {
+          Logger.warning(
+              'No se pudo verificar el estado del pago: ${verificationResponse['error']}');
+          return {
+            'success': true,
+            'data': response,
+            'warning': 'El pago se registró pero no se pudo verificar el estado'
+          };
+        }
+
+        final payments = verificationResponse['result'] as List?;
+        if (payments == null || payments.isEmpty) {
+          Logger.warning('No se encontraron pagos para verificar');
+          return {
+            'success': true,
+            'data': response,
+            'warning':
+                'El pago se registró pero no se encontraron datos para verificar'
+          };
+        }
+
+        // Obtener el pago más reciente
+        final latestPayment = payments.first;
+        final paymentStatus =
+            latestPayment['payment_status']?.toString().toLowerCase();
+        final paidAmount = latestPayment['paid_amount'] ?? 0.0;
+        final expectedAmount = latestPayment['payment_amount'] ?? 0.0;
+
+        // Validar el estado del pago
+        if (paymentStatus == null) {
+          Logger.warning('Estado del pago no encontrado');
+          return {
+            'success': true,
+            'data': response,
+            'warning':
+                'El pago se registró pero no se pudo determinar el estado'
+          };
+        }
+
+        // Verificar que el estado y el monto coincidan
+        final difference = ((paidAmount - expectedAmount) * 100).round() / 100;
+        String calculatedStatus;
+
+        if (difference.abs() <= 0.01) {
+          // Permitir una pequeña diferencia por redondeo
+          calculatedStatus = 'paid';
+        } else if (difference > 0) {
+          calculatedStatus = 'overpaid';
+        } else {
+          calculatedStatus = 'partial';
+        }
+
+        if (paymentStatus != calculatedStatus) {
+          Logger.warning(
+              'Estado del pago inconsistente: esperado $calculatedStatus, recibido $paymentStatus');
+          return {
+            'success': true,
+            'data': response,
+            'warning': 'El pago se registró pero el estado es inconsistente'
+          };
+        }
+
         return {
-          'error': 'El pago se registró pero no se pudo verificar el estado'
+          'success': true,
+          'data': {
+            ...response,
+            'payment_status': paymentStatus,
+            'paid_amount': paidAmount,
+            'expected_amount': expectedAmount,
+            'difference': difference
+          }
+        };
+      } catch (verificationError) {
+        Logger.error('Error al verificar el pago', verificationError);
+        return {
+          'success': true,
+          'data': response,
+          'warning':
+              'El pago se registró pero hubo un error al verificar el estado'
         };
       }
-
-      return {'success': true, 'data': response};
     } catch (e) {
       Logger.error('Error en registerPayment', e);
       return {'error': 'Error al procesar el pago: $e'};

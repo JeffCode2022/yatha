@@ -69,7 +69,8 @@ class Loan {
       // Validar el estado del préstamo
       String status =
           json['loan_status']?.toString()?.toLowerCase() ?? 'pending';
-      if (!['paid', 'pending', 'late'].contains(status)) {
+      if (!['paid', 'pending', 'late', 'overpaid', 'partial']
+          .contains(status)) {
         status = 'pending';
       }
 
@@ -136,6 +137,8 @@ class Loan {
   String getStatusText() {
     switch (status.toLowerCase()) {
       case 'paid':
+      case 'overpaid':
+      case 'partial':
         return 'Pagado';
       case 'pending':
         return 'Pendiente';
@@ -154,6 +157,7 @@ class PaymentMethod {
   static const String bcn = 'bcn';
   static const String plin = 'plin';
   static const String yape = 'yape';
+  static const String mixto = 'mixto';
 
   static String getDisplayName(String? method) {
     switch (method?.toLowerCase()) {
@@ -169,6 +173,8 @@ class PaymentMethod {
         return 'PLIN';
       case yape:
         return 'YAPE';
+      case mixto:
+        return 'Mixto';
       default:
         return 'No especificado';
     }
@@ -176,13 +182,19 @@ class PaymentMethod {
 
   static bool isValid(String? method) {
     if (method == null) return false;
-    return [cash, bbva, interbank, bcn, plin, yape]
-        .contains(method.toLowerCase());
+    final validMethods = [cash, bbva, interbank, bcn, plin, yape, mixto];
+    return validMethods.contains(method.toLowerCase());
   }
 
   static bool isTransfer(String? method) {
     if (method == null) return false;
-    return [bbva, interbank, bcn, plin, yape].contains(method.toLowerCase());
+    final transferMethods = [bbva, interbank, bcn, plin, yape];
+    return transferMethods.contains(method.toLowerCase());
+  }
+
+  static bool isDigitalTransfer(String? method) {
+    if (method == null) return false;
+    return [plin, yape].contains(method.toLowerCase());
   }
 }
 
@@ -236,6 +248,10 @@ class Installment {
         return 'Pendiente';
       case 'late':
         return 'Atrasado';
+      case 'overpaid':
+        return 'Pago Excedido';
+      case 'partial':
+        return 'Pago Parcial';
       default:
         return 'Pendiente';
     }
