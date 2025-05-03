@@ -6,6 +6,7 @@ import '../../utils/widgets/date_picker.dart';
 import '../../models/gestor.dart';
 import 'package:intl/intl.dart';
 import '../../utils/theme/app_theme.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 class SupervisorKpiScreen extends StatefulWidget {
   const SupervisorKpiScreen({Key? key}) : super(key: key);
@@ -818,21 +819,27 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
+                            AutoSizeText(
                               loan['name'] ?? 'Sin código',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                                fontSize: 12,
                                 color: Colors.black87,
                               ),
+                              maxLines: 1,
+                              minFontSize: 10,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
+                            AutoSizeText(
                               currencyFormat.format(loan['loan_amount'] ?? 0),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                                fontSize: 12,
                                 color: Colors.black87,
                               ),
+                              maxLines: 1,
+                              minFontSize: 9,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -843,7 +850,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                               : 'Cliente sin nombre',
                           style: TextStyle(
                             color: Colors.grey[600],
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
                         Row(
@@ -878,7 +885,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                         loan['state'] ?? 'Pendiente',
                         style: TextStyle(
                           color: Colors.orange[700],
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
                       ),

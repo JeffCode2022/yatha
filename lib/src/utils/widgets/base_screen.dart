@@ -9,6 +9,7 @@ import '../../providers/cliente_provider.dart';
 import '../theme/app_theme.dart';
 import '../../routes/app_routes.dart';
 import '../../screens/home_screen.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 class BaseScreen extends StatelessWidget {
   final String title;
@@ -146,7 +147,7 @@ class BaseScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildDrawerHeader(AuthProvider authProvider, String userInitial) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -160,10 +161,10 @@ class BaseScreen extends StatelessWidget {
         ),
       ),
       child: SafeArea(
-      child: Column(
-        children: [
-          Row(
-            children: [
+        child: Column(
+          children: [
+            Row(
+              children: [
                 CircleAvatar(
                   backgroundColor: AppTheme.colorScheme.primary,
                   child: Text(
@@ -175,56 +176,57 @@ class BaseScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AutoSizeText(
                         authProvider.user?.displayName ?? 'Usuario',
-                      style: TextStyle(
-                        color: Colors.grey[800],
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        style: TextStyle(
+                          color: Colors.grey[800],
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        minFontSize: 10,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ID: ${authProvider.user?.uid ?? 'No ID'}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
+                      const SizedBox(height: 4),
+                      Text(
+                        'ID: ${authProvider.user?.uid ?? 'No ID'}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppTheme.colorScheme.primary.withOpacity(0.3),
+                  width: 1,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.colorScheme.primary.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Text(
+              child: Text(
                 authProvider.user?.role == 'supervisor'
                     ? 'Supervisor'
                     : 'Gestor',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.colorScheme.primary,
-                fontWeight: FontWeight.w500,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -240,23 +242,23 @@ class BaseScreen extends StatelessWidget {
     Color? iconColor,
     VoidCallback? onTap,
   }) {
-    final itemColor = isSelected 
-        ? AppTheme.colorScheme.primary 
+    final itemColor = isSelected
+        ? AppTheme.colorScheme.primary
         : (textColor ?? Colors.grey[700]);
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isSelected 
-            ? AppTheme.colorScheme.primary.withOpacity(0.1) 
+        color: isSelected
+            ? AppTheme.colorScheme.primary.withOpacity(0.1)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
         leading: Icon(
           icon,
-          color: isSelected 
-              ? AppTheme.colorScheme.primary 
+          color: isSelected
+              ? AppTheme.colorScheme.primary
               : (iconColor ?? Colors.grey[600]),
           size: 20,
         ),
@@ -310,7 +312,7 @@ class BaseScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -368,7 +370,7 @@ class BaseScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildVersionInfo() {
     return Container(
       padding: const EdgeInsets.all(16),

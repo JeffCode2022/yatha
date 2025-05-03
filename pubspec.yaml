@@ -37,6 +37,7 @@ dependencies:
   flutter_dotenv: ^5.2.1
   quickalert: ^1.0.2
   iconsax_flutter: ^1.0.0
+  auto_size_text: ^3.0.0
 
 dev_dependencies:
   flutter_test:

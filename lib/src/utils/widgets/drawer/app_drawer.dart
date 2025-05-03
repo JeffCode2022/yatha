@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yatha_app/src/models/user_role.dart';
 import 'package:yatha_app/src/utils/theme/app_theme.dart';
 import 'package:get/get.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 class AppDrawer extends StatefulWidget {
   final UserRole userRole;
@@ -86,7 +87,7 @@ class _AppDrawerState extends State<AppDrawer> {
                 : null,
           ),
           const SizedBox(height: 16),
-          Text(
+          AutoSizeText(
             widget.userName,
             style: const TextStyle(
               color: Colors.white,
@@ -95,6 +96,7 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
             textAlign: TextAlign.center,
             maxLines: 2,
+            minFontSize: 10,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),

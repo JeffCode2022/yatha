@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:yatha_app/src/providers/cliente_provider.dart';
 import 'package:yatha_app/src/models/loan.dart';
 import 'package:yatha_app/src/routes/app_routes.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 class LoansScreen extends StatefulWidget {
   const LoansScreen({Key? key}) : super(key: key);
@@ -16,7 +17,8 @@ class LoansScreen extends StatefulWidget {
   State<LoansScreen> createState() => _LoansScreenState();
 }
 
-class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStateMixin {
+class _LoansScreenState extends State<LoansScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   String _selectedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -26,20 +28,20 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    
+
     // Configurar animaciones
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    
+
     _fadeAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeIn,
     );
-    
+
     _animationController.forward();
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadLoans();
     });
@@ -142,8 +144,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
                       ],
                     ),
                   ),
-                  if (clienteProvider.isLoading)
-                    _buildLoadingOverlay(),
+                  if (clienteProvider.isLoading) _buildLoadingOverlay(),
                 ],
               ),
             ),
@@ -152,7 +153,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
       },
     );
   }
-  
+
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -203,7 +204,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildLoadingOverlay() {
     return Container(
       color: Colors.white.withOpacity(0.7),
@@ -234,7 +235,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
       },
     );
   }
-  
+
   Widget _buildErrorState(String error) {
     return Center(
       child: Padding(
@@ -278,7 +279,8 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.colorScheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -297,7 +299,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -312,7 +314,9 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                _isSearching ? Icons.search_off : Icons.account_balance_wallet_outlined,
+                _isSearching
+                    ? Icons.search_off
+                    : Icons.account_balance_wallet_outlined,
                 size: 40,
                 color: Colors.grey[400],
               ),
@@ -365,7 +369,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
       ),
     );
   }
-  
+
   Widget _buildLoanCard(dynamic loan, int index) {
     final clientName = loan['partner_id'] is List
         ? loan['partner_id'][1]
@@ -374,10 +378,10 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
     final status = loan['loan_status'] ?? 'pending';
     final paymentPeriod = loan['payment_period'] ?? 'daily';
     final loanId = loan['id']?.toString() ?? '';
-    
+
     // Animación de entrada escalonada
     final delay = Duration(milliseconds: 50 * index);
-    
+
     return FutureBuilder(
       future: Future.delayed(delay),
       builder: (context, snapshot) {
@@ -415,12 +419,15 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                                color: AppTheme.colorScheme.primary
+                                    .withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Center(
                                 child: Text(
-                                  clientName.isNotEmpty ? clientName[0].toUpperCase() : 'C',
+                                  clientName.isNotEmpty
+                                      ? clientName[0].toUpperCase()
+                                      : 'C',
                                   style: TextStyle(
                                     color: AppTheme.colorScheme.primary,
                                     fontSize: 16,
@@ -434,7 +441,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  AutoSizeText(
                                     clientName,
                                     style: TextStyle(
                                       fontSize: 14,
@@ -442,6 +449,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
                                       color: Colors.grey[800],
                                     ),
                                     maxLines: 1,
+                                    minFontSize: 8,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 4),
@@ -456,11 +464,13 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
                                           color: paymentPeriod == 'daily'
                                               ? Colors.blue.withOpacity(0.1)
                                               : Colors.purple.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                           border: Border.all(
                                             color: paymentPeriod == 'daily'
                                                 ? Colors.blue.withOpacity(0.3)
-                                                : Colors.purple.withOpacity(0.3),
+                                                : Colors.purple
+                                                    .withOpacity(0.3),
                                             width: 1,
                                           ),
                                         ),
@@ -539,7 +549,8 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
                             ),
                             Container(
                               decoration: BoxDecoration(
-                                color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                                color: AppTheme.colorScheme.primary
+                                    .withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: IconButton(
@@ -548,7 +559,8 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
                                   size: 14,
                                   color: AppTheme.colorScheme.primary,
                                 ),
-                                onPressed: () => _navigateToLoanDetail(loan, loanId),
+                                onPressed: () =>
+                                    _navigateToLoanDetail(loan, loanId),
                                 constraints: const BoxConstraints(
                                   minWidth: 32,
                                   minHeight: 32,
@@ -570,7 +582,7 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
       },
     );
   }
-  
+
   void _navigateToLoanDetail(dynamic loan, String loanId) {
     try {
       final loanProvider = Provider.of<LoanProvider>(context, listen: false);
@@ -601,4 +613,3 @@ class _LoansScreenState extends State<LoansScreen> with SingleTickerProviderStat
     }
   }
 }
-
