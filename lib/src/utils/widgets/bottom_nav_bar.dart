@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -16,132 +16,135 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Dimensiones ultra compactas
-    final containerHeight = 52.0;
-    final iconSize = 18.0;
-    final fontSize = 9.0;
-    final itemWidth = 48.0;
-    
-    // Colores con efecto de gradiente
-    final primaryColor = const Color(0xFF0DB774);
-    final secondaryColor = const Color(0xFF09A668);
-    final accentColor = Colors.white;
-    
+    // Dimensiones ajustadas para evitar overflow
+    final containerHeight = 80.0; // Aumentado para dar más espacio
+    final iconSize = 22.0; // Reducido ligeramente
+    final fontSize = 11.0; // Reducido ligeramente
+
+    // Colores estilo WhatsApp
+    final primaryColor = const Color(0xFF128C7E); // Verde WhatsApp
+    final selectedBackgroundColor = const Color(0xFFDCF8C6)
+        .withOpacity(0.5); // Fondo verde claro para seleccionado
+    final backgroundColor = Colors.white;
+    final unselectedItemColor = Colors.grey;
+    final notificationColor =
+        const Color(0xFF25D366); // Verde brillante para notificaciones
+
     final items = isGestor
         ? [
             _buildNavItem(
-              icon: Icons.account_balance_wallet_outlined,
-              activeIcon: Icons.account_balance_wallet_rounded,
+              icon: Iconsax.wallet,
+              activeIcon: Iconsax.wallet,
               label: 'Préstamos',
               index: 0,
               iconSize: iconSize,
               fontSize: fontSize,
-              itemWidth: itemWidth,
               primaryColor: primaryColor,
-              accentColor: accentColor,
+              selectedBackgroundColor: selectedBackgroundColor,
+              unselectedItemColor: unselectedItemColor,
+              notificationCount: 0,
+              notificationColor: notificationColor,
             ),
             _buildNavItem(
-              icon: Icons.map_outlined,
-              activeIcon: Icons.map_rounded,
+              icon: Iconsax.map,
+              activeIcon: Iconsax.map,
               label: 'Mapa',
               index: 1,
               iconSize: iconSize,
               fontSize: fontSize,
-              itemWidth: itemWidth,
               primaryColor: primaryColor,
-              accentColor: accentColor,
+              selectedBackgroundColor: selectedBackgroundColor,
+              unselectedItemColor: unselectedItemColor,
+              notificationCount: 0,
+              notificationColor: notificationColor,
             ),
             _buildNavItem(
-              icon: Icons.insert_chart_outlined_rounded,
-              activeIcon: Icons.insert_chart_rounded,
+              icon: Iconsax.chart,
+              activeIcon: Iconsax.chart,
               label: 'KPI',
               index: 2,
               iconSize: iconSize,
               fontSize: fontSize,
-              itemWidth: itemWidth,
               primaryColor: primaryColor,
-              accentColor: accentColor,
+              selectedBackgroundColor: selectedBackgroundColor,
+              unselectedItemColor: unselectedItemColor,
+              notificationCount: 0,
+              notificationColor: notificationColor,
             ),
             _buildNavItem(
-              icon: Icons.person_outline_rounded,
-              activeIcon: Icons.person_rounded,
+              icon: Iconsax.profile_circle,
+              activeIcon: Iconsax.profile_circle,
               label: 'Perfil',
               index: 3,
               iconSize: iconSize,
               fontSize: fontSize,
-              itemWidth: itemWidth,
               primaryColor: primaryColor,
-              accentColor: accentColor,
+              selectedBackgroundColor: selectedBackgroundColor,
+              unselectedItemColor: unselectedItemColor,
+              notificationCount: 0,
+              notificationColor: notificationColor,
             ),
           ]
         : [
             _buildNavItem(
-              icon: Icons.dashboard_outlined,
-              activeIcon: Icons.dashboard_rounded,
+              icon: Iconsax.category,
+              activeIcon: Iconsax.category,
               label: 'Dashboard',
               index: 0,
               iconSize: iconSize,
               fontSize: fontSize,
-              itemWidth: itemWidth,
               primaryColor: primaryColor,
-              accentColor: accentColor,
+              selectedBackgroundColor: selectedBackgroundColor,
+              unselectedItemColor: unselectedItemColor,
+              notificationCount: 0,
+              notificationColor: notificationColor,
             ),
             _buildNavItem(
-              icon: Icons.map_outlined,
-              activeIcon: Icons.map_rounded,
+              icon: Iconsax.map,
+              activeIcon: Iconsax.map,
               label: 'Mapa',
               index: 1,
               iconSize: iconSize,
               fontSize: fontSize,
-              itemWidth: itemWidth,
               primaryColor: primaryColor,
-              accentColor: accentColor,
+              selectedBackgroundColor: selectedBackgroundColor,
+              unselectedItemColor: unselectedItemColor,
+              notificationCount: 0,
+              notificationColor: notificationColor,
             ),
             _buildNavItem(
-              icon: Icons.person_outline_rounded,
-              activeIcon: Icons.person_rounded,
+              icon: Iconsax.profile_circle,
+              activeIcon: Iconsax.profile_circle,
               label: 'Perfil',
               index: 2,
               iconSize: iconSize,
               fontSize: fontSize,
-              itemWidth: itemWidth,
               primaryColor: primaryColor,
-              accentColor: accentColor,
+              selectedBackgroundColor: selectedBackgroundColor,
+              unselectedItemColor: unselectedItemColor,
+              notificationCount: 0,
+              notificationColor: notificationColor,
             ),
           ];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10, left: 16, right: 16, top: 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            height: containerHeight,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  primaryColor,
-                  secondaryColor,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: primaryColor.withOpacity(0.3),
-                  blurRadius: 10,
-                  spreadRadius: -2,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: items,
-            ),
+    return Container(
+      height: containerHeight,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, -1),
           ),
+        ],
+      ),
+      child: SafeArea(
+        // Establecemos top: false para que no añada padding adicional en la parte superior
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: items,
         ),
       ),
     );
@@ -154,88 +157,85 @@ class BottomNavBar extends StatelessWidget {
     required int index,
     required double iconSize,
     required double fontSize,
-    required double itemWidth,
     required Color primaryColor,
-    required Color accentColor,
+    required Color selectedBackgroundColor,
+    required Color unselectedItemColor,
+    required int notificationCount,
+    required Color notificationColor,
   }) {
     final isSelected = currentIndex == index;
-    
+
     return GestureDetector(
       onTap: () {
-        // Efecto de vibración sutil
         HapticFeedback.lightImpact();
         onTap(index);
       },
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: itemWidth,
+        width: 70,
+        // Usamos SizedBox con altura fija para evitar overflow
+        height: 50,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Contenedor del icono con efectos
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0.8, end: isSelected ? 1.0 : 0.8),
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutBack,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Efecto de resplandor para el icono activo
-                      if (isSelected)
-                        Container(
-                          width: iconSize * 1.8,
-                          height: iconSize * 1.8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withOpacity(0.3),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                        ),
-                      // Fondo del icono
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        padding: EdgeInsets.all(isSelected ? 6 : 4),
-                        decoration: BoxDecoration(
-                          color: isSelected 
-                              ? Colors.white.withOpacity(0.25) 
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          isSelected ? activeIcon : icon,
-                          size: iconSize,
-                          color: isSelected 
-                              ? Colors.white 
-                              : Colors.white.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
+            // Contenedor para el icono y la notificación
+            Stack(
+              clipBehavior: Clip.none, // Permite que el badge salga del Stack
+              children: [
+                // Icono con fondo rectangular cuando está seleccionado
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? selectedBackgroundColor
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 1),
-            // Texto con efecto de fade
-            AnimatedOpacity(
-              opacity: isSelected ? 1.0 : 0.7,
-              duration: const Duration(milliseconds: 200),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: Colors.white,
-                  letterSpacing: 0.2,
+                  child: Icon(
+                    isSelected ? activeIcon : icon,
+                    size: iconSize,
+                    color: isSelected ? primaryColor : unselectedItemColor,
+                  ),
                 ),
+
+                // Badge de notificación (como en WhatsApp)
+                if (notificationCount > 0)
+                  Positioned(
+                    top: -5,
+                    right: -5,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: notificationColor,
+                        shape: BoxShape.rectangle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        notificationCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 2), // Reducido el espacio
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: fontSize,
+                height: 1.0, // Altura de línea ajustada para evitar overflow
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                color: isSelected ? primaryColor : unselectedItemColor,
               ),
             ),
           ],

@@ -41,7 +41,8 @@ class ApiService extends BaseService {
   // Función para autenticar al usuario
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
-      final body = {
+      // Primera llamada para autenticación
+      final authBody = {
         "jsonrpc": "2.0",
         "params": {
           "db": Environment.dbName,
@@ -50,37 +51,69 @@ class ApiService extends BaseService {
         }
       };
 
-      final response = await post(Environment.authEndpoint, body: body);
+      final authResponse = await post(Environment.authEndpoint, body: authBody);
 
-      if (response['result'] != null) {
-        final result = response['result'];
+      if (authResponse['result'] != null) {
+        final result = authResponse['result'];
+        final uid = result['uid'];
 
-        // Determinar el rol basado en el email
-        String role = 'gestor';
-        if (username.toLowerCase().contains('supervisor')) {
-          role = 'supervisor';
-        }
-
-        // Guardar datos de sesión
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt('uid', result['uid']);
-        await prefs.setString('role', role);
-        await prefs.setString('username', username);
-        await prefs.setString('password', '1234');
-        await prefs.setString('auth_token', result['token'] ?? '');
-
-        return {
-          'success': true,
-          'uid': result['uid'],
-          'role': role,
-          'name': username.split('@')[0],
-          'email': username,
+        // Segunda llamada para obtener datos del usuario incluyendo partner_id
+        final userDataBody = {
+          "jsonrpc": "2.0",
+          "method": "call",
+          "params": {
+            "service": "object",
+            "method": "execute",
+            "args": [
+              Environment.dbName,
+              uid,
+              password,
+              "res.users",
+              "search_read",
+              [
+                ["id", "=", uid]
+              ],
+              ["id", "partner_id", "x_role"]
+            ]
+          }
         };
+
+        final userDataResponse = await post('/jsonrpc', body: userDataBody);
+
+        if (userDataResponse['result'] != null &&
+            userDataResponse['result'].length > 0) {
+          final userData = userDataResponse['result'][0];
+          final role = userData['x_role'] ?? 'gestor';
+          final partnerId = userData['partner_id'];
+          final name =
+              partnerId != null ? partnerId[1] : username.split('@')[0];
+
+          // Guardar datos de sesión
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('uid', uid);
+          await prefs.setString('role', role);
+          await prefs.setString('username', username);
+          await prefs.setString('password', '1234');
+          await prefs.setString('auth_token', result['token'] ?? '');
+          await prefs.setString('name', name);
+          if (partnerId != null) {
+            await prefs.setString('partner_id', json.encode(partnerId));
+          }
+
+          return {
+            'success': true,
+            'uid': uid,
+            'role': role,
+            'name': name,
+            'email': username,
+            'partner_id': partnerId,
+          };
+        }
       }
 
-      if (response['error'] != null) {
+      if (authResponse['error'] != null) {
         return {
-          'error': response['error']['message'] ?? 'Error de autenticación',
+          'error': authResponse['error']['message'] ?? 'Error de autenticación',
         };
       }
 
@@ -344,59 +377,85 @@ class ApiService extends BaseService {
     try {
       Logger.info('Obteniendo pagos para préstamo: $loanId');
 
-      final queryFilters = [
-        ["loan_id", "=", loanId]
-      ];
-
-      final queryFields = [
-        "id",
-        "loan_id",
-        "partner_id",
-        "partner_salesperson",
-        "create_uid",
-        "write_uid",
-        "partner_address",
-        "name",
-        "payment_status",
-        "payment_met",
-        "date_status",
-        "payment_period",
-        "payment_date",
-        "actual_payment_date",
-        "observations",
-        "create_date",
-        "write_date",
-        "loan_amount",
-        "total_amount",
-        "paid_amount_total",
-        "current_due",
-        "payment_amount",
-        "paid_amount",
-        "paid_amount_cash",
-        "paid_amount_transferencia",
-        "loan_profit",
-        "loan_capital",
-        "interest_paid",
-        "capital_paid",
-        "monthly_total_due"
-      ];
-
-      final response = await executeOdooMethod(
-        model: "loan.payment",
-        method: "search_read",
-        args: [queryFilters, queryFields],
-      );
-
-      if (response['result'] != null) {
-        Logger.info('Pagos encontrados: ${response['result'].length}');
-        if (response['result'].isEmpty) {
-          Logger.warning('No se encontraron pagos para el préstamo $loanId');
-        }
-        return response;
+      // Normalizar el ID del préstamo
+      String normalizedLoanId = loanId;
+      if (loanId.startsWith('PRST-')) {
+        // Si es un ID de referencia, buscar por el campo name
+        normalizedLoanId = loanId;
+      } else {
+        // Si es numérico, buscar por ID
+        normalizedLoanId = loanId;
       }
 
-      Logger.error('Error al obtener pagos: respuesta inválida', response);
-      throw Exception('Error al obtener pagos: respuesta inválida');
+      final body = {
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": {
+          "service": "object",
+          "method": "execute",
+          "args": [
+            "prestamovf",
+            uid,
+            "1234",
+            "loan.payment",
+            "search_read",
+            [
+              ["loan_id", "=", normalizedLoanId]
+            ],
+            [
+              "id",
+              "loan_id",
+              "partner_id",
+              "partner_salesperson",
+              "create_uid",
+              "write_uid",
+              "partner_address",
+              "name",
+              "payment_status",
+              "payment_met",
+              "date_status",
+              "payment_period",
+              "payment_date",
+              "actual_payment_date",
+              "observations",
+              "create_date",
+              "write_date",
+              "loan_amount",
+              "total_amount",
+              "paid_amount_total",
+              "current_due",
+              "payment_amount",
+              "paid_amount",
+              "paid_amount_cash",
+              "paid_amount_transferencia",
+              "loan_profit",
+              "loan_capital",
+              "interest_paid",
+              "capital_paid",
+              "monthly_total_due"
+            ]
+          ]
+        }
+      };
+
+      final response = await post('/jsonrpc', body: body);
+
+      if (response.containsKey('error')) {
+        Logger.error('Error al obtener pagos', response['error']);
+        return {
+          'error': response['error']['message'] ?? 'Error al obtener pagos'
+        };
+      }
+
+      final payments = response['result'] as List?;
+      Logger.info('Pagos encontrados: ${payments?.length ?? 0}');
+
+      if (payments == null || payments.isEmpty) {
+        Logger.warning('No se encontraron pagos para el préstamo $loanId');
+        return {'result': []};
+      }
+
+      return {'result': payments};
     } catch (e) {
       Logger.error('Error en getLoanPayments', e);
       return {'error': 'Error al obtener pagos: $e'};

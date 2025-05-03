@@ -82,9 +82,8 @@ class BaseScreen extends StatelessWidget {
 
   Widget _buildDrawer(BuildContext context, AuthProvider authProvider) {
     final isSupervisor = authProvider.user?.role == 'supervisor';
-    final userInitial = authProvider.user?.name.isNotEmpty == true
-        ? authProvider.user!.name![0].toUpperCase()
-        : 'U';
+    final userName = authProvider.user?.displayName ?? 'Usuario';
+    final userInitial = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
 
     return Drawer(
       backgroundColor: Colors.white,
@@ -127,13 +126,6 @@ class BaseScreen extends StatelessWidget {
                     route: AppRoutes.gestorMap,
                     isSelected: title == 'Mapa de Cobros',
                   ),
-                  _buildDrawerItem(
-                    context: context,
-                    icon: Icons.analytics,
-                    title: 'Mis KPIs',
-                    route: AppRoutes.gestorKpis,
-                    isSelected: title == 'Indicadores',
-                  ),
                 ],
                 const Divider(height: 32),
                 _buildDrawerItem(
@@ -157,7 +149,7 @@ class BaseScreen extends StatelessWidget {
   
   Widget _buildDrawerHeader(AuthProvider authProvider, String userInitial) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -167,51 +159,28 @@ class BaseScreen extends StatelessWidget {
           ),
         ),
       ),
+      child: SafeArea(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppTheme.colorScheme.primary,
-                      AppTheme.colorScheme.primary.withOpacity(0.8),
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.colorScheme.primary.withOpacity(0.2),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Center(
+                CircleAvatar(
+                  backgroundColor: AppTheme.colorScheme.primary,
                   child: Text(
                     userInitial,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
+                const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      authProvider.user?.name ?? 'Usuario',
+                        authProvider.user?.displayName ?? 'Usuario',
                       style: TextStyle(
                         color: Colors.grey[800],
                         fontSize: 16,
@@ -245,7 +214,9 @@ class BaseScreen extends StatelessWidget {
               ),
             ),
             child: Text(
-              authProvider.user?.role == 'supervisor' ? 'Supervisor' : 'Gestor',
+                authProvider.user?.role == 'supervisor'
+                    ? 'Supervisor'
+                    : 'Gestor',
               style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.colorScheme.primary,
@@ -254,6 +225,7 @@ class BaseScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

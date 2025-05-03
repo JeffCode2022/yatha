@@ -22,6 +22,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
   bool _isMounted = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -260,24 +261,39 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
             await supervisorProvider.loadDailyLoans();
           },
           color: AppTheme.colorScheme.primary,
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildGestorSelector(supervisorProvider),
-                  const SizedBox(height: 20),
-                  _buildDateRangeSelector(supervisorProvider),
-                  const SizedBox(height: 20),
-                  _buildDailySection(supervisorProvider),
-                  const SizedBox(height: 20),
-                  _buildDateRangeKPIs(supervisorProvider),
-                ],
+          child: Stack(
+            children: [
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildGestorSelector(supervisorProvider),
+                      const SizedBox(height: 20),
+                      _buildDateRangeSelector(supervisorProvider),
+                      const SizedBox(height: 20),
+                      _buildDailySection(supervisorProvider),
+                      const SizedBox(height: 20),
+                      _buildDateRangeKPIs(supervisorProvider),
+                      // Agregar espacio extra al final para asegurar que el último widget sea visible
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
               ),
-            ),
+              if (_isLoading)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.3),
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -343,15 +359,50 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                 ),
               );
             }).toList(),
-            onChanged: (value) {
+            onChanged: (value) async {
               if (value != null) {
-                final selectedGestor = supervisorProvider.gestores
-                    .firstWhere((g) => g.id == value);
                 setState(() {
-                  _selectedGestor = selectedGestor;
+                  _isLoading =
+                      true; // Mostrar loading mientras se actualizan los datos
                 });
-                supervisorProvider.setSelectedGestor(selectedGestor);
-                supervisorProvider.loadKpis();
+
+                try {
+                  final selectedGestor = supervisorProvider.gestores
+                      .firstWhere((g) => g.id == value);
+
+                  // Actualizar el gestor seleccionado
+                  setState(() {
+                    _selectedGestor = selectedGestor;
+                  });
+
+                  // Establecer el nuevo gestor
+                  supervisorProvider.setSelectedGestor(selectedGestor);
+
+                  // Recargar todos los datos
+                  await Future.wait([
+                    supervisorProvider.loadKpis(),
+                    supervisorProvider.loadDailyLoans(),
+                    supervisorProvider.loadRangeKpis(_startDate, _endDate),
+                  ]);
+
+                  if (mounted) {
+                    setState(() {
+                      _isLoading = false;
+                    });
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Error al cargar los datos del gestor'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    setState(() {
+                      _isLoading = false;
+                    });
+                  }
+                }
               }
             },
             hint: 'Seleccionar Gestor',
@@ -625,11 +676,28 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     );
   }
 
+  double _calcularTotalPagadoPorPrestamo(int loanId, List<dynamic> payments) {
+    double totalPagado = 0.0;
+    for (var pago in payments) {
+      if (pago['loan_id'] is List && pago['loan_id'][0] == loanId) {
+        if (pago['payment_met'] == 'mixto') {
+          totalPagado += (pago['paid_amount_cash'] ?? 0.0) +
+              (pago['paid_amount_transferencia'] ?? 0.0);
+        } else {
+          totalPagado += (pago['paid_amount'] ?? 0.0);
+        }
+      }
+    }
+    return totalPagado;
+  }
+
   Widget _buildDailyLoansSection(SupervisorProvider supervisorProvider) {
     final currencyFormat = NumberFormat.currency(
       symbol: 'S/',
       decimalDigits: 2,
     );
+
+    final payments = supervisorProvider.rangeKpis['payments'] ?? [];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -655,7 +723,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
               Text(
                 'Eficiencia de Desembolsos',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: Colors.grey[800],
                   fontWeight: FontWeight.w500,
                 ),
@@ -663,7 +731,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
               Text(
                 '${(supervisorProvider.efficiencyPercentage * 100).toStringAsFixed(1)}%',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: _getEfficiencyColor(
                       supervisorProvider.efficiencyPercentage),
@@ -672,14 +740,6 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            'Meta: ${currencyFormat.format(supervisorProvider.expectedAmount * 1.2)}',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
@@ -687,7 +747,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
               backgroundColor: Colors.grey[200],
               valueColor: AlwaysStoppedAnimation<Color>(
                   _getEfficiencyColor(supervisorProvider.efficiencyPercentage)),
-              minHeight: 8,
+              minHeight: 6,
             ),
           ),
           const SizedBox(height: 8),
@@ -695,16 +755,16 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Desembolsado: ${currencyFormat.format(supervisorProvider.totalDisbursed)}',
+                'Desemb: ${currencyFormat.format(supervisorProvider.totalDisbursed)}',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 11,
                   color: Colors.grey[600],
                 ),
               ),
               Text(
-                'Esperado: ${currencyFormat.format(supervisorProvider.expectedAmount)}',
+                'Esp: ${currencyFormat.format(supervisorProvider.expectedAmount)}',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 11,
                   color: Colors.grey[600],
                 ),
               ),
@@ -740,6 +800,10 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
               itemCount: supervisorProvider.dailyLoans.length,
               itemBuilder: (context, index) {
                 final loan = supervisorProvider.dailyLoans[index];
+                final loanId = loan['id'];
+                final totalPagado =
+                    _calcularTotalPagadoPorPrestamo(loanId, payments);
+                final saldoActual = (loan['total_amount'] ?? 0.0) - totalPagado;
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   elevation: 0,
@@ -786,7 +850,9 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(loan['create_date']))}',
+                              loan['create_date'] != null
+                                  ? 'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(loan['create_date']))}'
+                                  : 'Fecha: No disponible',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 13,
@@ -837,6 +903,18 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                               currencyFormat.format(loan['total_amount'] ?? 0),
                               isTotal: true,
                             ),
+                            const SizedBox(height: 8),
+                            _buildLoanDetailRow(
+                              'Total Pagado',
+                              currencyFormat.format(totalPagado),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildLoanDetailRow(
+                              'Saldo actual',
+                              currencyFormat.format(saldoActual),
+                              isTotal: true,
+                              isOverdue: true,
+                            ),
                           ],
                         ),
                       ),
@@ -869,7 +947,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
             fontWeight:
                 isTotal || isOverdue ? FontWeight.bold : FontWeight.normal,
             color: isOverdue
-                ? Colors.red
+                ? Colors.orange
                 : (isTotal ? AppTheme.colorScheme.primary : Colors.grey[800]),
           ),
         ),

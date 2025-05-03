@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yatha_app/src/models/user.dart';
 import '../services/api_service.dart';
+import 'dart:convert';
 
 class AuthProvider with ChangeNotifier {
   User? _user;
@@ -31,21 +32,33 @@ class AuthProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final savedUid = prefs.getInt('uid');
       final savedRole = prefs.getString('role');
-      final savedName = prefs.getString('username');
+      final savedName = prefs.getString('name');
       final savedEmail = prefs.getString('username');
+      final savedPartnerId = prefs.getString('partner_id');
 
       print('AuthProvider - Cargando datos guardados:');
       print('AuthProvider - UID: $savedUid');
       print('AuthProvider - Rol: $savedRole');
       print('AuthProvider - Nombre: $savedName');
       print('AuthProvider - Email: $savedEmail');
+      print('AuthProvider - Partner ID: $savedPartnerId');
 
       if (savedUid != null && savedRole != null) {
+        List<dynamic>? partnerId;
+        if (savedPartnerId != null) {
+          try {
+            partnerId = json.decode(savedPartnerId) as List<dynamic>;
+          } catch (e) {
+            print('Error decodificando partner_id: $e');
+          }
+        }
+
         _user = User(
           uid: savedUid,
           name: savedName ?? '',
           email: savedEmail ?? '',
           role: savedRole,
+          partnerId: partnerId,
         );
         _isAuthenticated = true;
         print('AuthProvider - Usuario autenticado: ${_user?.toJson()}');
@@ -111,9 +124,10 @@ class AuthProvider with ChangeNotifier {
       // Crear objeto User con los datos recibidos
       _user = User(
         uid: userId,
-        name: response['name'] ?? username.split('@')[0],
+        name: response['name'] ?? '',
         email: response['email'] ?? username,
         role: response['role'] ?? 'gestor',
+        partnerId: response['partner_id'] as List<dynamic>?,
       );
 
       _isAuthenticated = true;
@@ -124,8 +138,12 @@ class AuthProvider with ChangeNotifier {
       await prefs.setInt('uid', userId);
       await prefs.setString('role', _user!.role);
       await prefs.setString('username', username);
-      await prefs.setString(
-          'password', '1234'); // Contraseña fija como en Postman
+      await prefs.setString('name', response['name'] ?? '');
+      await prefs.setString('password', '1234');
+      if (response['partner_id'] != null) {
+        await prefs.setString(
+            'partner_id', json.encode(response['partner_id']));
+      }
 
       print('AuthProvider - Login exitoso');
       print('AuthProvider - Usuario: ${_user?.toJson()}');
@@ -135,8 +153,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('AuthProvider - Error en el proceso de login: $e');
-      _isAuthenticated = false;
+      print('AuthProvider - Error en login: $e');
       _errorMessage = 'Error de conexión: $e';
       _isLoading = false;
       notifyListeners();

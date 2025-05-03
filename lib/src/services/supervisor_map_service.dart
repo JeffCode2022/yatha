@@ -43,7 +43,8 @@ class SupervisorMapService {
                 ["payment_date", "=", formattedDate],
                 ["payment_status", "=", "pending"],
                 ["loan_id.partner_latitude", "!=", false],
-                ["loan_id.partner_longitude", "!=", false]
+                ["loan_id.partner_longitude", "!=", false],
+                ["loan_id.partner_street", "!=", false]
               ],
               [
                 "id",
@@ -53,7 +54,13 @@ class SupervisorMapService {
                 "loan_id/partner_latitude",
                 "loan_id/partner_longitude",
                 "loan_id/partner_id",
-                "loan_id/partner_salesperson"
+                "loan_id/partner_salesperson",
+                "loan_id/partner_street",
+                "loan_id/partner_street2",
+                "loan_id/partner_city",
+                "loan_id/partner_state_id",
+                "loan_id/partner_country_id",
+                "loan_id/partner_zip"
               ]
             ]
           }
@@ -69,6 +76,27 @@ class SupervisorMapService {
         return payments.map((payment) {
           final lat = payment['loan_id/partner_latitude'];
           final lng = payment['loan_id/partner_longitude'];
+          final street = payment['loan_id/partner_street'];
+          final street2 = payment['loan_id/partner_street2'];
+          final city = payment['loan_id/partner_city'];
+          final state = payment['loan_id/partner_state_id'];
+          final country = payment['loan_id/partner_country_id'];
+          final zip = payment['loan_id/partner_zip'];
+
+          // Construir la dirección completa
+          final addressParts = [
+            street,
+            street2,
+            city,
+            state != null ? state[1] : null,
+            country != null ? country[1] : null,
+            zip
+          ]
+              .where((part) => part != null && part.toString().isNotEmpty)
+              .toList();
+
+          final fullAddress = addressParts.join(', ');
+
           return {
             'latitude': double.tryParse(lat.toString()) ?? 0.0,
             'longitude': double.tryParse(lng.toString()) ?? 0.0,
@@ -83,6 +111,13 @@ class SupervisorMapService {
             'gestor_id': payment['loan_id/partner_salesperson'] != null
                 ? payment['loan_id/partner_salesperson'][0].toString()
                 : '0',
+            'address': fullAddress,
+            'street': street,
+            'street2': street2,
+            'city': city,
+            'state': state != null ? state[1] : null,
+            'country': country != null ? country[1] : null,
+            'zip': zip
           };
         }).toList();
       }

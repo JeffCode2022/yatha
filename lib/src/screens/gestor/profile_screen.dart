@@ -148,6 +148,11 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _buildProfileHeader(String userInitial, String userEmail) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final userRole = authProvider.user?.role ?? 'gestor';
+    final userName = authProvider.user?.displayName ?? 'Usuario';
+
+    // Obtener la inicial del nombre completo
+    final userInitialFromName =
+        userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
 
     // Determinar el texto del rol
     final String rolText = userRole == 'supervisor'
@@ -197,65 +202,51 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               child: Center(
                 child: Text(
-                  userInitial,
+                  userInitialFromName,
                   style: const TextStyle(
-                    fontSize: 32,
-                    color: Colors.white,
+                    fontSize: 36,
                     fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-
-            // Indicador de estado activo
-            Positioned(
-              bottom: 5,
-              right: 5,
-              child: Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(
                     color: Colors.white,
-                    width: 2,
                   ),
                 ),
               ),
             ),
           ],
         ),
-
         const SizedBox(height: 16),
+
+        // Nombre del usuario
+        Text(
+          userName,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
 
         // Email
         Text(
           userEmail,
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey[800],
+            color: Colors.grey[600],
           ),
         ),
-
         const SizedBox(height: 8),
 
-        // Badge de rol
+        // Rol
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
             color: AppTheme.colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.colorScheme.primary.withOpacity(0.3),
-              width: 1,
-            ),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
             rolText,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               color: AppTheme.colorScheme.primary,
               fontWeight: FontWeight.w500,
             ),

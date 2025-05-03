@@ -248,7 +248,10 @@ class _PaymentModalState extends State<PaymentModal> {
             'paid_amount_cash': 0.0,
             'paid_amount_transferencia': totalAmount,
             'payment_met': _selectedPaymentMethod,
-            'payment_type': 'transfer',
+            'payment_type':
+                PaymentMethod.isDigitalTransfer(_selectedPaymentMethod)
+                    ? 'digital'
+                    : 'transfer',
             'transfer_details': {
               'method': _selectedPaymentMethod,
               'amount': totalAmount,
@@ -256,7 +259,9 @@ class _PaymentModalState extends State<PaymentModal> {
                   ? 'paid'
                   : totalAmount > expectedAmount
                       ? 'overpaid'
-                      : 'partial'
+                      : 'partial',
+              'is_digital':
+                  PaymentMethod.isDigitalTransfer(_selectedPaymentMethod)
             }
           });
         } else {
@@ -430,29 +435,6 @@ class _PaymentModalState extends State<PaymentModal> {
     }
 
     return messages.join('\n');
-  }
-
-  void _updateMixedPaymentAmounts(String value, bool isCash) {
-    final expectedAmount = widget.payment['payment_amount'] ?? 0.0;
-    final enteredAmount = double.tryParse(value) ?? 0.0;
-
-    if (isCash) {
-      if (enteredAmount <= expectedAmount) {
-        final remainingAmount = expectedAmount - enteredAmount;
-        _transferAmountController.text = remainingAmount.toStringAsFixed(2);
-      } else {
-        _cashAmountController.text = expectedAmount.toStringAsFixed(2);
-        _transferAmountController.text = '0.00';
-      }
-    } else {
-      if (enteredAmount <= expectedAmount) {
-        final remainingAmount = expectedAmount - enteredAmount;
-        _cashAmountController.text = remainingAmount.toStringAsFixed(2);
-      } else {
-        _transferAmountController.text = expectedAmount.toStringAsFixed(2);
-        _cashAmountController.text = '0.00';
-      }
-    }
   }
 
   @override
@@ -1049,12 +1031,8 @@ class _PaymentModalState extends State<PaymentModal> {
               if (cashAmount < 0) {
                 return 'El monto no puede ser negativo';
               }
-              if (cashAmount > expectedAmount) {
-                return 'El monto no puede ser mayor a S/. ${expectedAmount.toStringAsFixed(2)}';
-              }
               return null;
             },
-            onChanged: (value) => _updateMixedPaymentAmounts(value, true),
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -1079,20 +1057,8 @@ class _PaymentModalState extends State<PaymentModal> {
               if (transferAmount < 0) {
                 return 'El monto no puede ser negativo';
               }
-              if (transferAmount > expectedAmount) {
-                return 'El monto no puede ser mayor a S/. ${expectedAmount.toStringAsFixed(2)}';
-              }
-
-              // Validar que la suma de ambos montos sea igual al monto esperado
-              final cashAmount =
-                  double.tryParse(_cashAmountController.text) ?? 0.0;
-              final totalAmount = cashAmount + transferAmount;
-              if ((totalAmount - expectedAmount).abs() > 0.01) {
-                return 'La suma debe ser S/. ${expectedAmount.toStringAsFixed(2)}';
-              }
               return null;
             },
-            onChanged: (value) => _updateMixedPaymentAmounts(value, false),
           ),
           const SizedBox(height: 16),
           Container(

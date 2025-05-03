@@ -315,20 +315,26 @@ class SupervisorProvider with ChangeNotifier {
   }
 
   Future<void> loadDailyLoans() async {
+    if (_selectedGestor == null) return;
+
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-      final response = await _service.getDailyLoans(_startDate, _endDate);
+      final response = await _service.getDailyLoans(
+        _startDate,
+        _endDate,
+        _selectedGestor!.id, // Pasar el ID del gestor seleccionado
+      );
       print('Respuesta del endpoint: $response');
 
       if (response != null && response['result'] != null) {
         _dailyLoans = List<Map<String, dynamic>>.from(response['result']);
-        print('Préstamos cargados: ${_dailyLoans.length}');
+        print('Préstamos cargados: [32m[1m[4m${_dailyLoans.length}[0m');
 
         if (_dailyLoans.isNotEmpty) {
-          // Calcular totales globales
+          // Calcular totales para el gestor seleccionado
           _totalDisbursed = _dailyLoans.fold(
               0.0, (sum, loan) => sum + (loan['loan_amount'] ?? 0.0));
           _totalInterest = _dailyLoans.fold(
@@ -345,7 +351,7 @@ class SupervisorProvider with ChangeNotifier {
               ? (_totalDisbursed / targetAmount).clamp(0.0, 1.0)
               : 0.0;
 
-          print('Totales calculados:');
+          print('Totales calculados para el gestor ${_selectedGestor!.name}:');
           print('- Total préstamos: ${_dailyLoans.length}');
           print('- Total desembolsado: $_totalDisbursed');
           print('- Total interés: $_totalInterest');
@@ -359,13 +365,15 @@ class SupervisorProvider with ChangeNotifier {
       } else {
         _dailyLoans = [];
         _resetTotals();
-        print('No se encontraron préstamos');
+        print(
+            'No se encontraron préstamos para el gestor ${_selectedGestor!.name}');
       }
 
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      print('Error al cargar préstamos: $e');
+      print(
+          'Error al cargar préstamos del gestor ${_selectedGestor!.name}: $e');
       _isLoading = false;
       _errorMessage = e.toString();
       _dailyLoans = [];
@@ -381,8 +389,6 @@ class SupervisorProvider with ChangeNotifier {
     _expectedAmount = 0.0;
     _efficiencyPercentage = 0.0;
     _paymentAmount = 0.0;
-    _rangeEfficiencyPercentage = 0.0;
-    _rangeExpectedAmount = 0.0;
   }
 
   Future<void> loadRangeKpis(DateTime startDate, DateTime endDate) async {
@@ -410,7 +416,7 @@ class SupervisorProvider with ChangeNotifier {
 
         // La eficiencia se calcula como: monto recaudado / monto esperado
         _rangeEfficiencyPercentage = _rangeExpectedAmount > 0
-            ? (collectedAmount / _rangeExpectedAmount).clamp(0.0, 1.0)
+            ? (collectedAmount / _rangeExpectedAmount)
             : 0.0;
 
         // Procesar los pagos para calcular los pagos a tiempo
@@ -443,7 +449,8 @@ class SupervisorProvider with ChangeNotifier {
             'Range efficiency percentage: ${_rangeEfficiencyPercentage * 100}%');
         print('On-time payments: ${_rangeKpis['on_time_payments']}');
         print('On-time payments percentage: ${onTimePaymentsPercentage}%');
-      } else {
+      } // No llamar a _resetRangeData() si la respuesta es vacía pero válida
+      else {
         _resetRangeData();
       }
 

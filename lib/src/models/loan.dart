@@ -137,15 +137,19 @@ class Loan {
   String getStatusText() {
     switch (status.toLowerCase()) {
       case 'paid':
-      case 'overpaid':
-      case 'partial':
-        return 'Pagado';
-      case 'pending':
-        return 'Pendiente';
+        return 'Pagado Completamente';
+      case 'on_time':
+        return 'Pendiente de Pago';
       case 'late':
-        return 'Atrasado';
+        return 'Pago Atrasado';
+      case 'overpaid':
+        return 'Pago Excedido';
+      case 'partial':
+        return 'Pago Parcial';
+      case 'pending':
+        return 'Pendiente de Pago';
       default:
-        return 'Desconocido';
+        return 'Estado Desconocido';
     }
   }
 }

@@ -74,7 +74,9 @@ class _AppDrawerState extends State<AppDrawer> {
                 : null,
             child: widget.userAvatar == null
                 ? Text(
-                    widget.userName.substring(0, 1).toUpperCase(),
+                    widget.userName.isNotEmpty
+                        ? widget.userName.substring(0, 1).toUpperCase()
+                        : 'U',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -91,6 +93,9 @@ class _AppDrawerState extends State<AppDrawer> {
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Container(
@@ -115,6 +120,9 @@ class _AppDrawerState extends State<AppDrawer> {
               color: Colors.white.withOpacity(0.8),
               fontSize: 14,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

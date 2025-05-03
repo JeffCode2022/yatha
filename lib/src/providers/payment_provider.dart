@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import 'package:yatha_app/src/models/loan.dart';
 
 class PaymentProvider with ChangeNotifier {
   bool _isLoading = false;
@@ -80,7 +81,11 @@ class PaymentProvider with ChangeNotifier {
         requestData['params'].addAll({
           'paid_amount_cash': 0.0,
           'paid_amount_transferencia': paymentData['paid_amount'] ?? 0.0,
-          'payment_met': 'transfer'
+          'payment_met': paymentData['payment_met'],
+          'payment_type':
+              PaymentMethod.isDigitalTransfer(paymentData['payment_met'])
+                  ? 'digital'
+                  : 'transfer'
         });
       }
 

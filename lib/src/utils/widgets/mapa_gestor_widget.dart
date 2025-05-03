@@ -257,21 +257,70 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
         }
       });
 
+      // Agrupar préstamos por lat/lng
+      Map<String, List<Map<String, dynamic>>> prestamosPorUbicacion = {};
       for (var prestamo in prestamos) {
-        if (!mounted) return;
+        final lat = prestamo['partner_latitude'].toString();
+        final lng = prestamo['partner_longitude'].toString();
+        final key = '$lat,$lng';
+        if (!prestamosPorUbicacion.containsKey(key)) {
+          prestamosPorUbicacion[key] = [];
+        }
+        prestamosPorUbicacion[key]!.add(prestamo);
+      }
 
-        final double lat =
-            double.tryParse(prestamo['partner_latitude'].toString()) ?? 0;
-        final double lng =
-            double.tryParse(prestamo['partner_longitude'].toString()) ?? 0;
-
+      // Crear un marcador por ubicación
+      prestamosPorUbicacion.forEach((key, prestamosEnUbicacion) {
+        final double lat = double.tryParse(
+                prestamosEnUbicacion[0]['partner_latitude'].toString()) ??
+            0;
+        final double lng = double.tryParse(
+                prestamosEnUbicacion[0]['partner_longitude'].toString()) ??
+            0;
         if (lat != 0 && lng != 0) {
           final marker = Marker(
             point: LatLng(lat, lng),
-            width: 150,
-            height: 80,
+            width: 170,
+            height: 90,
             child: GestureDetector(
-              onTap: () => _showPrestamoDetails(prestamo),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Préstamos en esta ubicación'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: prestamosEnUbicacion.map((prestamo) {
+                        return ListTile(
+                          title: Text(
+                            prestamo['partner_id'] != null &&
+                                    prestamo['partner_id'] is List
+                                ? prestamo['partner_id'][1]
+                                : 'Sin nombre',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Préstamo: ${prestamo['name'] ?? ''}'),
+                              Text(
+                                  'Monto: S/. ${(prestamo['amount'] ?? 0.0).toStringAsFixed(2)}'),
+                              Text(
+                                  'Dirección: ${prestamo['partner_address'] ?? 'No disponible'}'),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cerrar'),
+                      ),
+                    ],
+                  ),
+                );
+              },
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -314,9 +363,9 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          prestamo['partner_id'] != null &&
-                                  prestamo['partner_id'] is List
-                              ? prestamo['partner_id'][1]
+                          prestamosEnUbicacion[0]['partner_id'] != null &&
+                                  prestamosEnUbicacion[0]['partner_id'] is List
+                              ? prestamosEnUbicacion[0]['partner_id'][1]
                               : 'Sin nombre',
                           style: const TextStyle(
                             fontSize: 11,
@@ -326,7 +375,9 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          'S/. ${(prestamo['amount'] ?? 0.0).toStringAsFixed(2)}',
+                          prestamosEnUbicacion.length == 1
+                              ? 'S/. ${(prestamosEnUbicacion[0]['amount'] ?? 0.0).toStringAsFixed(2)}'
+                              : '${prestamosEnUbicacion.length} préstamos',
                           style: const TextStyle(
                             fontSize: 10,
                             color: Colors.green,
@@ -340,14 +391,13 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
               ),
             ),
           );
-
           if (mounted) {
             setState(() {
               _markers.add(marker);
             });
           }
         }
-      }
+      });
 
       if (mounted) {
         _centerMap();

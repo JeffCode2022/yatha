@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:yatha_app/src/config/environment.dart';
 import 'package:yatha_app/src/services/base_service.dart';
+import 'package:yatha_app/src/utils/logger.dart';
 
 class SupervisorService extends BaseService {
   String get _baseUrl => Environment.apiUrl;
@@ -142,6 +143,13 @@ class SupervisorService extends BaseService {
           double transferAmount =
               (payment['paid_amount_transferencia'] ?? 0.0).toDouble();
           paidAmount = cashAmount + transferAmount;
+
+          // Validar que la suma de los pagos mixtos no exceda significativamente el monto esperado
+          if (paidAmount > expectedAmount * 1.5) {
+            // 50% de tolerancia
+            Logger.warning(
+                'Pago mixto excede significativamente el monto esperado: $paidAmount > $expectedAmount');
+          }
         } else {
           paidAmount = (payment['paid_amount'] ?? 0.0).toDouble();
         }
@@ -382,16 +390,15 @@ class SupervisorService extends BaseService {
   }
 
   Future<Map<String, dynamic>> getDailyLoans(
-      DateTime startDate, DateTime endDate) async {
+    DateTime startDate,
+    DateTime endDate,
+    String gestorId,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final uid = prefs.getInt('uid') ?? 0;
       final password = prefs.getString('password') ?? '';
       final database = prefs.getString('database') ?? 'prestamovf';
-
-      // Formatear las fechas para que coincidan con el formato de la base de datos
-      final formattedStartDate = DateFormat('yyyy-MM-dd').format(startDate);
-      final formattedEndDate = DateFormat('yyyy-MM-dd').format(endDate);
 
       final response = await post('/jsonrpc', body: {
         "jsonrpc": "2.0",
@@ -406,55 +413,30 @@ class SupervisorService extends BaseService {
             "loan.management",
             "search_read",
             [
-              ["payment_period", "=", "daily"],
-              ["loan_status", "=", "pending"],
-              ["start_date", ">=", formattedStartDate],
-              ["start_date", "<=", formattedEndDate]
+              ["partner_salesperson", "=", int.parse(gestorId)],
+              ["loan_status", "!=", "cancelled"],
+              ["create_date", ">=", DateFormat('yyyy-MM-dd').format(startDate)],
+              ["create_date", "<=", DateFormat('yyyy-MM-dd').format(endDate)]
             ],
             [
               "id",
+              "name",
+              "loan_amount",
+              "profit",
+              "total_amount",
+              "loan_status",
               "partner_id",
               "partner_salesperson",
-              "payment_parts",
-              "days_overdue",
-              "create_uid",
-              "write_uid",
-              "name",
-              "prestamo_anterior",
-              "payment_period",
-              "loan_status",
-              "payment_frequency",
-              "start_date",
-              "first_payment_date",
-              "due_date",
-              "partner_latitude",
-              "partner_longitude",
-              "create_date",
-              "write_date",
-              "total_interest_paid",
-              "loan_amount",
-              "interest_rate",
-              "real_interest_rate",
-              "total_amount",
-              "profit",
-              "current_due",
-              "payment_amount",
-              "amount_due_today",
-              "total_cash_payments",
-              "total_transfer_payments"
+              "create_date"
             ]
           ]
         }
       });
 
-      if (response['result'] == null) {
-        return {'result': []};
-      }
-
-      return {'result': response['result']};
+      return response;
     } catch (e) {
       print('Error en getDailyLoans: $e');
-      return {'result': []};
+      rethrow;
     }
   }
 
