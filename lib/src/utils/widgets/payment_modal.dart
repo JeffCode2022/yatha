@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import '../theme/app_theme.dart';
 import '../../services/api_service.dart';
 import '../../models/loan.dart';
@@ -118,8 +119,8 @@ class _PaymentModalState extends State<PaymentModal> {
                         color: Colors.red.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.error_outline,
+                      child: Icon(
+                        Iconsax.danger, // Iconsax en lugar de Material Icons
                         color: Colors.red,
                         size: 40,
                       ),
@@ -165,8 +166,17 @@ class _PaymentModalState extends State<PaymentModal> {
 
     if (_isSunday()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pueden registrar pagos en domingo'),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Iconsax.danger,
+                  color: Colors.white, size: 16), // Iconsax para error
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('No se pueden registrar pagos en domingo'),
+              ),
+            ],
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -193,12 +203,21 @@ class _PaymentModalState extends State<PaymentModal> {
               children: [
                 const CircularProgressIndicator(),
                 const SizedBox(height: 16),
-                const Text(
-                  'Procesando pago...',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Iconsax.timer,
+                        size: 16,
+                        color: Colors.grey[700]), // Iconsax para procesando
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Procesando pago...',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -464,8 +483,8 @@ class _PaymentModalState extends State<PaymentModal> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.check_circle_outline,
+                Icon(
+                  Iconsax.tick_circle, // Iconsax en lugar de Material Icons
                   color: Colors.green,
                   size: 48,
                 ),
@@ -487,9 +506,11 @@ class _PaymentModalState extends State<PaymentModal> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'),
+                  icon: Icon(Iconsax.close_circle,
+                      size: 16), // Iconsax para cerrar
+                  label: const Text('Cerrar'),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -523,16 +544,26 @@ class _PaymentModalState extends State<PaymentModal> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Registrar Pago',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.colorScheme.primary,
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          Iconsax.money_send, // Iconsax para pago
+                          color: AppTheme.colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Registrar Pago',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: Icon(Iconsax.close_circle), // Iconsax para cerrar
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -554,29 +585,70 @@ class _PaymentModalState extends State<PaymentModal> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Cuota: ${widget.payment['name'] ?? ''}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          Icon(
+                            Iconsax.receipt_2, // Iconsax para cuota
+                            size: 16,
+                            color: AppTheme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Cuota: ${widget.payment['name'] ?? ''}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Fecha de pago: ${widget.payment['payment_date'] ?? 'Sin fecha'}',
+                      Row(
+                        children: [
+                          Icon(
+                            Iconsax.calendar, // Iconsax para fecha
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Fecha de pago: ${widget.payment['payment_date'] ?? 'Sin fecha'}',
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Monto: \\S/.${(widget.payment['payment_amount'] ?? 0.0).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.colorScheme.primary,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            Iconsax.money, // Iconsax para monto
+                            size: 16,
+                            color: AppTheme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Monto: \\S/.${(widget.payment['payment_amount'] ?? 0.0).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.colorScheme.primary,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Estado: ${_getPaymentStatusText(paymentStatus)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _getPaymentStatusColor(paymentStatus),
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            _getPaymentStatusIcon(
+                                paymentStatus), // Iconsax según estado
+                            size: 16,
+                            color: _getPaymentStatusColor(paymentStatus),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Estado: ${_getPaymentStatusText(paymentStatus)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _getPaymentStatusColor(paymentStatus),
+                            ),
+                          ),
+                        ],
                       ),
                       if (isPaymentBlocked) ...[
                         const SizedBox(height: 8),
@@ -589,13 +661,16 @@ class _PaymentModalState extends State<PaymentModal> {
                             color: Colors.green.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check_circle,
-                                  color: Colors.green, size: 16),
-                              SizedBox(width: 4),
-                              Text(
+                              Icon(
+                                  Iconsax
+                                      .tick_circle, // Iconsax para pago realizado
+                                  color: Colors.green,
+                                  size: 16),
+                              const SizedBox(width: 4),
+                              const Text(
                                 'Pago ya realizado',
                                 style: TextStyle(
                                   color: Colors.green,
@@ -617,16 +692,16 @@ class _PaymentModalState extends State<PaymentModal> {
                             color: Colors.orange.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.warning,
+                                Iconsax.warning_2, // Iconsax para advertencia
                                 color: Colors.orange,
                                 size: 16,
                               ),
-                              SizedBox(width: 4),
-                              Text(
+                              const SizedBox(width: 4),
+                              const Text(
                                 'La fecha de pago no es hoy',
                                 style: TextStyle(
                                   color: Colors.orange,
@@ -648,12 +723,14 @@ class _PaymentModalState extends State<PaymentModal> {
                             color: Colors.red.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.error, color: Colors.red, size: 16),
-                              SizedBox(width: 4),
-                              Text(
+                              Icon(Iconsax.danger, // Iconsax para error
+                                  color: Colors.red,
+                                  size: 16),
+                              const SizedBox(width: 4),
+                              const Text(
                                 'No se pueden registrar pagos en domingo',
                                 style: TextStyle(
                                   color: Colors.red,
@@ -683,17 +760,26 @@ class _PaymentModalState extends State<PaymentModal> {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
+                      child: OutlinedButton.icon(
+                        icon: Icon(Iconsax.close_circle,
+                            size: 16), // Iconsax para cancelar
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: const Text('Cancelar'),
+                        label: const Text('Cancelar'),
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: ElevatedButton(
+                      child: ElevatedButton.icon(
+                        icon: Icon(
+                          isPaymentBlocked
+                              ? Iconsax.tick_circle // Iconsax para completado
+                              : Iconsax.money_send, // Iconsax para pagar
+                          size: 16,
+                          color: Colors.white,
+                        ),
                         onPressed: isPaymentBlocked
                             ? null
                             : (_isProcessing ? null : _processPayment),
@@ -702,7 +788,7 @@ class _PaymentModalState extends State<PaymentModal> {
                           backgroundColor: AppTheme.colorScheme.primary,
                           foregroundColor: Colors.white,
                         ),
-                        child: _isProcessing
+                        label: _isProcessing
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
@@ -732,9 +818,19 @@ class _PaymentModalState extends State<PaymentModal> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Método de pago',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        Row(
+          children: [
+            Icon(
+              Iconsax.card, // Iconsax para método de pago
+              size: 16,
+              color: Colors.grey[800],
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Método de pago',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -744,43 +840,43 @@ class _PaymentModalState extends State<PaymentModal> {
             children: [
               _buildPaymentMethodCard(
                 title: 'Efectivo',
-                icon: Icons.payments_outlined,
+                icon: Iconsax.money, // Iconsax para efectivo
                 value: 'cash',
                 color: Colors.green,
               ),
               _buildPaymentMethodCard(
                 title: 'BBVA',
-                icon: Icons.account_balance,
+                icon: Iconsax.bank, // Iconsax para banco
                 value: 'bbva',
                 color: Colors.blue,
               ),
               _buildPaymentMethodCard(
                 title: 'INTERBANK',
-                icon: Icons.account_balance,
+                icon: Iconsax.bank, // Iconsax para banco
                 value: 'interbank',
                 color: Colors.orange,
               ),
               _buildPaymentMethodCard(
                 title: 'BN',
-                icon: Icons.account_balance,
+                icon: Iconsax.bank, // Iconsax para banco
                 value: 'bcn',
                 color: Colors.red,
               ),
               _buildPaymentMethodCard(
                 title: 'PLIN',
-                icon: Icons.phone_android,
+                icon: Iconsax.mobile, // Iconsax para móvil
                 value: 'plin',
                 color: const Color.fromARGB(255, 39, 130, 176),
               ),
               _buildPaymentMethodCard(
                 title: 'YAPE',
-                icon: Icons.phone_android,
+                icon: Iconsax.mobile, // Iconsax para móvil
                 value: 'yape',
                 color: Colors.deepPurple,
               ),
               _buildPaymentMethodCard(
                 title: 'Mixto',
-                icon: Icons.compare_arrows,
+                icon: Iconsax.convert, // Iconsax para mixto
                 value: 'mixto',
                 color: Colors.teal,
               ),
@@ -846,9 +942,11 @@ class _PaymentModalState extends State<PaymentModal> {
         children: [
           TextFormField(
             controller: _cashAmountController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Monto en efectivo',
               prefixText: 'S/. ',
+              prefixIcon:
+                  Icon(Iconsax.money, size: 18), // Iconsax para efectivo
             ),
             keyboardType: TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
@@ -864,9 +962,11 @@ class _PaymentModalState extends State<PaymentModal> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _transferAmountController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Monto por transferencia',
               prefixText: 'S/. ',
+              prefixIcon:
+                  Icon(Iconsax.card, size: 18), // Iconsax para transferencia
             ),
             keyboardType: TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
@@ -884,9 +984,12 @@ class _PaymentModalState extends State<PaymentModal> {
     } else {
       return TextFormField(
         controller: _amountController,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Monto a pagar',
           prefixText: 'S/. ',
+          prefixIcon: Icon(
+              _selectedPaymentMethod == 'cash' ? Iconsax.money : Iconsax.card,
+              size: 18), // Iconsax según método
         ),
         keyboardType: TextInputType.numberWithOptions(decimal: true),
         inputFormatters: [
@@ -906,22 +1009,30 @@ class _PaymentModalState extends State<PaymentModal> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Desglose del pago (Préstamo Mensual)',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        Row(
+          children: [
+            Icon(
+              Iconsax.document_text, // Iconsax para desglose
+              size: 16,
+              color: Colors.grey[800],
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Desglose del pago (Préstamo Mensual)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
 
         // Campo de interés
         TextFormField(
           controller: _interestController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Interés Pagado',
-            prefixIcon: Padding(
-              padding: EdgeInsets.only(left: 8.0),
-              child: Text('S/', style: TextStyle(fontSize: 16)),
-            ),
-            border: OutlineInputBorder(),
+            prefixIcon:
+                Icon(Iconsax.money_recive, size: 18), // Iconsax para interés
+            border: const OutlineInputBorder(),
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [
@@ -948,10 +1059,11 @@ class _PaymentModalState extends State<PaymentModal> {
         // Campo de capital
         TextFormField(
           controller: _capitalController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Capital Pagado',
-            prefixIcon: Icon(Icons.account_balance_wallet),
-            border: OutlineInputBorder(),
+            prefixIcon:
+                Icon(Iconsax.money_recive, size: 18), // Iconsax para capital
+            border: const OutlineInputBorder(),
           ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           validator: (value) {
@@ -975,9 +1087,19 @@ class _PaymentModalState extends State<PaymentModal> {
           ),
           child: Row(
             children: [
-              const Text(
-                'Total a pagar:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  Icon(
+                    Iconsax.money_tick, // Iconsax para total
+                    size: 16,
+                    color: Colors.grey[800],
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Total a pagar:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
               const Spacer(),
               Text(
@@ -1001,9 +1123,19 @@ class _PaymentModalState extends State<PaymentModal> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Monto del pago (Préstamo Diario)',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        Row(
+          children: [
+            Icon(
+              Iconsax.money_tick, // Iconsax para monto
+              size: 16,
+              color: Colors.grey[800],
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Monto del pago (Préstamo Diario)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         if (_selectedPaymentMethod == 'mixto') ...[
@@ -1012,6 +1144,8 @@ class _PaymentModalState extends State<PaymentModal> {
             decoration: InputDecoration(
               labelText: 'Monto en efectivo',
               prefixText: 'S/. ',
+              prefixIcon:
+                  Icon(Iconsax.money, size: 18), // Iconsax para efectivo
               border: const OutlineInputBorder(),
               helperText:
                   'Monto total esperado: S/. ${expectedAmount.toStringAsFixed(2)}',
@@ -1037,10 +1171,12 @@ class _PaymentModalState extends State<PaymentModal> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _transferAmountController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Monto por transferencia',
               prefixText: 'S/. ',
-              border: OutlineInputBorder(),
+              prefixIcon:
+                  Icon(Iconsax.card, size: 18), // Iconsax para transferencia
+              border: const OutlineInputBorder(),
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
@@ -1073,8 +1209,16 @@ class _PaymentModalState extends State<PaymentModal> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Efectivo:',
-                        style: TextStyle(color: Colors.grey)),
+                    Row(
+                      children: [
+                        Icon(Iconsax.money,
+                            size: 14,
+                            color: Colors.grey[600]), // Iconsax para efectivo
+                        const SizedBox(width: 4),
+                        const Text('Efectivo:',
+                            style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
                     Text(
                       'S/. ${(double.tryParse(_cashAmountController.text) ?? 0.0).toStringAsFixed(2)}',
                       style: const TextStyle(fontWeight: FontWeight.w500),
@@ -1085,8 +1229,17 @@ class _PaymentModalState extends State<PaymentModal> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Transferencia:',
-                        style: TextStyle(color: Colors.grey)),
+                    Row(
+                      children: [
+                        Icon(Iconsax.card,
+                            size: 14,
+                            color:
+                                Colors.grey[600]), // Iconsax para transferencia
+                        const SizedBox(width: 4),
+                        const Text('Transferencia:',
+                            style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
                     Text(
                       'S/. ${(double.tryParse(_transferAmountController.text) ?? 0.0).toStringAsFixed(2)}',
                       style: const TextStyle(fontWeight: FontWeight.w500),
@@ -1097,9 +1250,17 @@ class _PaymentModalState extends State<PaymentModal> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Total:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    Row(
+                      children: [
+                        Icon(Iconsax.money_tick,
+                            size: 14,
+                            color: Colors.grey[800]), // Iconsax para total
+                        const SizedBox(width: 4),
+                        const Text(
+                          'Total:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
                     Text(
                       'S/. ${((double.tryParse(_cashAmountController.text) ?? 0.0) + (double.tryParse(_transferAmountController.text) ?? 0.0)).toStringAsFixed(2)}',
@@ -1120,6 +1281,11 @@ class _PaymentModalState extends State<PaymentModal> {
             decoration: InputDecoration(
               labelText: 'Monto a pagar',
               prefixText: 'S/. ',
+              prefixIcon: Icon(
+                  _selectedPaymentMethod == 'cash'
+                      ? Iconsax.money
+                      : Iconsax.card,
+                  size: 18), // Iconsax según método
               border: const OutlineInputBorder(),
               helperText:
                   'Monto esperado: S/. ${expectedAmount.toStringAsFixed(2)}',
@@ -1167,6 +1333,21 @@ class _PaymentModalState extends State<PaymentModal> {
     }
   }
 
+  IconData _getPaymentStatusIcon(String status) {
+    switch (status) {
+      case 'paid':
+        return Iconsax.tick_circle;
+      case 'partial':
+        return Iconsax.timer_1;
+      case 'overpaid':
+        return Iconsax.money_add;
+      case 'pending':
+        return Iconsax.timer;
+      default:
+        return Iconsax.info_circle;
+    }
+  }
+
   Color _getPaymentStatusColor(String status) {
     switch (status) {
       case 'paid':
@@ -1190,6 +1371,59 @@ class _PaymentModalState extends State<PaymentModal> {
         return 'Pago Parcial';
       default:
         return 'Estado desconocido';
+    }
+  }
+}
+
+class PaymentMethod {
+  static const String cash = 'cash';
+  static const String bbva = 'bbva';
+  static const String interbank = 'interbank';
+  static const String bcn = 'bcn';
+  static const String plin = 'plin';
+  static const String yape = 'yape';
+  static const String mixto = 'mixto';
+
+  static bool isValid(String method) {
+    return method == cash ||
+        method == bbva ||
+        method == interbank ||
+        method == bcn ||
+        method == plin ||
+        method == yape ||
+        method == mixto;
+  }
+
+  static bool isTransfer(String method) {
+    return method == bbva ||
+        method == interbank ||
+        method == bcn ||
+        method == plin ||
+        method == yape;
+  }
+
+  static bool isDigitalTransfer(String method) {
+    return method == plin || method == yape;
+  }
+
+  static String getDisplayName(String method) {
+    switch (method) {
+      case cash:
+        return 'Efectivo';
+      case bbva:
+        return 'BBVA';
+      case interbank:
+        return 'INTERBANK';
+      case bcn:
+        return 'Banco de la Nación';
+      case plin:
+        return 'PLIN';
+      case yape:
+        return 'YAPE';
+      case mixto:
+        return 'Pago Mixto';
+      default:
+        return 'Desconocido';
     }
   }
 }

@@ -4,10 +4,13 @@ import 'package:yatha_app/src/providers/supervisor_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'dart:math' as math;
 import '../../utils/theme/app_theme.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/rendering.dart';
+import 'dart:ui';
 
 // Cliente HTTP global persistente para toda la aplicación
 final http.Client _globalHttpClient = http.Client();
@@ -53,9 +56,15 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'Cambiando proveedor de mapas...',
-          style: TextStyle(fontSize: 14),
+        content: Row(
+          children: [
+            Icon(Iconsax.refresh, size: 16, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text(
+              'Cambiando proveedor de mapas...',
+              style: TextStyle(fontSize: 14),
+            ),
+          ],
         ),
         duration: const Duration(seconds: 2),
         backgroundColor: Colors.orange,
@@ -77,9 +86,15 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'No hay conexión a internet. Verifica tu conexión.',
-          style: TextStyle(fontSize: 14),
+        content: Row(
+          children: [
+            Icon(Iconsax.wifi_square, size: 16, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text(
+              'No hay conexión a internet. Verifica tu conexión.',
+              style: TextStyle(fontSize: 14),
+            ),
+          ],
         ),
         duration: const Duration(seconds: 3),
         backgroundColor: Colors.red,
@@ -179,6 +194,51 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     _mapController.move(LatLng(centerLat, centerLng), zoom);
   }
 
+  // Función para crear un componente de tarjeta con efecto espejo mejorado
+  Widget _buildGlassmorphicCard({
+    required Widget child,
+    double borderRadius = 16,
+    Color borderColor = Colors.white30,
+    double blurAmount = 10.0,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
+    Color? backgroundColor,
+  }) {
+    return AnimatedOpacity(
+      opacity: 1.0,
+      duration: const Duration(milliseconds: 300),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blurAmount, sigmaY: blurAmount),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: backgroundColor ?? Colors.white.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(borderRadius),
+              border: Border.all(color: borderColor, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: -5,
+                ),
+              ],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.8),
+                  Colors.white.withOpacity(0.5),
+                ],
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<SupervisorProvider>(
@@ -186,26 +246,47 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
         return Scaffold(
           backgroundColor: Colors.white,
           body: SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  _buildControlsSection(supervisorProvider),
-                  if (supervisorProvider.selectedGestor != null)
-                    _buildDateDisplay(),
-                  Expanded(
-                    child: _buildMapSection(supervisorProvider),
+            child: Stack(
+              children: [
+                // Mapa ocupa todo el fondo
+                _buildMapSection(supervisorProvider),
+
+                // Selector de gestor, calendario y fecha seleccionada juntos arriba en un card con efecto espejo
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: _buildGlassmorphicCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildControlsSection(supervisorProvider),
+                        _buildFloatingDateDisplay(),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+
+                // Leyenda abajo a la izquierda en un card con efecto espejo
+                Positioned(
+                  bottom: 24,
+                  left: 16,
+                  child: _buildGlassmorphicCard(
+                    borderRadius: 12,
+                    blurAmount: 8.0,
+                    padding: const EdgeInsets.all(12),
+                    child: _buildMapLegend(),
+                  ),
+                ),
+              ],
             ),
           ),
-          // Botón flotante para cambiar proveedor de tiles si hay error
           floatingActionButton: _mapLoadError
               ? FloatingActionButton.small(
                   onPressed: _checkConnectivityAndSwitchTileProvider,
                   backgroundColor: AppTheme.colorScheme.primary,
-                  child: const Icon(Icons.refresh, size: 20),
+                  child: Icon(Iconsax.refresh, size: 20),
                 )
               : null,
         );
@@ -275,28 +356,29 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
             ),
           ],
         ),
-        Positioned(
-          top: 16,
-          right: 16,
-          child: _buildMapLegend(),
-        ),
         if (_mapLoadError)
           Positioned(
             bottom: 16,
             left: 0,
             right: 0,
             child: Center(
-              child: Container(
+              child: _buildGlassmorphicCard(
+                borderRadius: 20,
+                blurAmount: 5.0,
+                backgroundColor: Colors.red.withOpacity(0.6),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Error al cargar el mapa. Toca el botón para cambiar de proveedor.',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                  textAlign: TextAlign.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Iconsax.danger, size: 16, color: Colors.white),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Error al cargar el mapa. Toca el botón para cambiar de proveedor.',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -309,7 +391,32 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     );
   }
 
-  // Resto del código se mantiene igual...
+  // Widget para mostrar la fecha seleccionada flotando sobre el mapa
+  Widget _buildFloatingDateDisplay() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Iconsax.calendar,
+            size: 14,
+            color: AppTheme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Fecha seleccionada: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[800],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -342,9 +449,17 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
   }
 
   List<Marker> _buildMarkers(List<Map<String, dynamic>> locations) {
+    print('Marcadores a mostrar:');
+    for (var loc in locations) {
+      print(' - $loc');
+    }
     return locations.map((location) {
-      final lat = location['latitude'];
-      final lng = location['longitude'];
+      final lat = location['latitude'] is String
+          ? double.tryParse(location['latitude']) ?? 0.0
+          : (location['latitude'] ?? 0.0);
+      final lng = location['longitude'] is String
+          ? double.tryParse(location['longitude']) ?? 0.0
+          : (location['longitude'] ?? 0.0);
       final clientName = location['client_name'] as String?;
       final amount = location['amount'] as double?;
       final status = location['status'] as String?;
@@ -354,59 +469,68 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
         point: LatLng(lat, lng),
         width: 120,
         height: 70,
-        child: GestureDetector(
+        child: _buildEnhancedMarker(
+          title: isGestor == true
+              ? 'Gestor'
+              : 'S/ [36m${amount?.toStringAsFixed(2) ?? '0.00'}',
+          icon: isGestor == true ? Iconsax.user_tick : Iconsax.location,
+          color: isGestor == true
+              ? AppTheme.colorScheme.primary
+              : _getStatusColor(status),
           onTap: () {
             _showLocationDetails(clientName, amount, status, isGestor);
           },
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                  border: Border.all(
-                    color: Colors.grey[200]!,
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  isGestor == true
-                      ? 'Gestor'
-                      : 'S/ ${amount?.toStringAsFixed(2) ?? '0.00'}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Icon(
-                isGestor == true ? Icons.person_pin : Icons.location_on,
-                color: isGestor == true
-                    ? AppTheme.colorScheme.primary
-                    : _getStatusColor(status),
-                size: 30,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 3,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-            ],
-          ),
         ),
       );
     }).toList();
+  }
+
+  Widget _buildEnhancedMarker({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          _buildGlassmorphicCard(
+            borderRadius: 8,
+            blurAmount: 5.0,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 8,
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 24,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showLocationDetails(
@@ -414,68 +538,84 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                isGestor == true ? Icons.person : Icons.person_outline,
-                color: AppTheme.colorScheme.primary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isGestor == true ? 'Detalle del Gestor' : 'Detalle del Cliente',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: _buildGlassmorphicCard(
+            borderRadius: 20,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isGestor == true
+                          ? Iconsax.user_tick
+                          : Iconsax.profile_circle,
+                      color: AppTheme.colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      isGestor == true
+                          ? 'Detalle del Gestor'
+                          : 'Detalle del Cliente',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailRow(
-                isGestor == true ? 'Gestor:' : 'Cliente:',
-                name ?? 'No disponible',
-                isGestor == true ? Icons.person : Icons.person_outline,
-              ),
-              if (isGestor != true) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 _buildDetailRow(
-                  'Monto:',
-                  'S/ ${amount?.toStringAsFixed(2) ?? '0.00'}',
-                  Icons.attach_money,
+                  isGestor == true ? 'Gestor:' : 'Cliente:',
+                  name ?? 'No disponible',
+                  isGestor == true ? Iconsax.user_tick : Iconsax.profile_circle,
                 ),
-                const SizedBox(height: 12),
-                _buildDetailRow(
-                  'Estado:',
-                  _getStatusText(status),
-                  Icons.info_outline,
-                  valueColor: _getStatusColor(status),
+                if (isGestor != true) ...[
+                  const SizedBox(height: 12),
+                  _buildDetailRow(
+                    'Monto:',
+                    'S/ ${amount?.toStringAsFixed(2) ?? '0.00'}',
+                    Iconsax.money,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDetailRow(
+                    'Estado:',
+                    _getStatusText(status),
+                    Iconsax.information,
+                    valueColor: _getStatusColor(status),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Iconsax.close_circle, size: 16),
+                    label: const Text(
+                      'Cerrar',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.colorScheme.primary,
+                      backgroundColor: Colors.white.withOpacity(0.3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
               ],
-            ],
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.colorScheme.primary,
-              ),
-              child: const Text(
-                'Cerrar',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
             ),
-          ],
+          ),
         );
       },
     );
@@ -548,32 +688,20 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.transparent,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppTheme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.map,
-                  color: AppTheme.colorScheme.primary,
-                  size: 14,
-                ),
+              Icon(
+                Iconsax.map,
+                color: Colors.grey[800],
+                size: 16,
               ),
               const SizedBox(width: 8),
               Text(
@@ -596,63 +724,77 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey[200]!),
                   ),
-                  child: DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Seleccionar Gestor',
-                      labelStyle: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                      border: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(8)),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    value: supervisorProvider.selectedGestor?.id,
-                    items: supervisorProvider.gestores.map((gestor) {
-                      return DropdownMenuItem<String>(
-                        value: gestor.id,
-                        child: Text(
-                          gestor.name,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[800],
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          decoration: InputDecoration(
+                            labelText: 'Seleccionar Gestor',
+                            labelStyle: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                            border: const OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(8)),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            prefixIcon: Icon(
+                              Iconsax.user,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
                           ),
+                          value: supervisorProvider.selectedGestor?.id,
+                          items: supervisorProvider.gestores.map((gestor) {
+                            return DropdownMenuItem<String>(
+                              value: gestor.id,
+                              child: Text(
+                                gestor.name,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              final selectedGestor = supervisorProvider.gestores
+                                  .firstWhere((g) => g.id == newValue);
+                              supervisorProvider
+                                  .setSelectedGestor(selectedGestor);
+                              _loadMapData();
+                            }
+                          },
+                          hint: Text(
+                            'Seleccione un gestor',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          isExpanded: true,
+                          icon: Icon(
+                            Iconsax.arrow_down_1,
+                            color: Colors.grey[600],
+                            size: 14,
+                          ),
+                          dropdownColor: Colors.white,
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        final selectedGestor = supervisorProvider.gestores
-                            .firstWhere((g) => g.id == newValue);
-                        supervisorProvider.setSelectedGestor(selectedGestor);
-                        _loadMapData();
-                      }
-                    },
-                    hint: Text(
-                      'Seleccione un gestor',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[500],
                       ),
-                    ),
-                    isExpanded: true,
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: Colors.grey[600],
-                    ),
-                    dropdownColor: Colors.white,
+                    ],
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                  color: Colors.green[50],
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: AppTheme.colorScheme.primary.withOpacity(0.3),
@@ -660,7 +802,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
                 ),
                 child: IconButton(
                   onPressed: () => _selectDate(context),
-                  icon: const Icon(Icons.calendar_today, size: 16),
+                  icon: Icon(Iconsax.calendar, size: 16),
                   color: AppTheme.colorScheme.primary,
                   tooltip: 'Seleccionar fecha',
                   constraints: const BoxConstraints(
@@ -676,93 +818,35 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     );
   }
 
-  Widget _buildDateDisplay() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey[200]!,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.calendar_today,
-            size: 14,
-            color: Colors.grey[600],
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Fecha seleccionada:',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppTheme.colorScheme.primary.withOpacity(0.3),
-              ),
-            ),
-            child: Text(
-              DateFormat('dd/MM/yyyy').format(_selectedDate),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.colorScheme.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMapLegend() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Leyenda',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Iconsax.note,
+              size: 12,
               color: Colors.grey[800],
             ),
-          ),
-          const SizedBox(height: 8),
-          _buildLegendItem('Gestor', AppTheme.colorScheme.primary),
-          const SizedBox(height: 4),
-          _buildLegendItem('Cliente Pendiente', Colors.red),
-          const SizedBox(height: 4),
-          _buildLegendItem('Cliente Pagado', Colors.green),
-        ],
-      ),
+            const SizedBox(width: 4),
+            Text(
+              'Leyenda',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _buildLegendItem('Cliente Pendiente', Colors.red),
+        const SizedBox(height: 4),
+        _buildLegendItem('Gestor', AppTheme.colorScheme.primary),
+      ],
     );
   }
 
@@ -770,10 +854,17 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          label == 'Gestor' ? Icons.person_pin : Icons.location_on,
-          color: color,
-          size: 16,
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            label == 'Gestor' ? Iconsax.user_tick : Iconsax.location,
+            color: color,
+            size: 12,
+          ),
         ),
         const SizedBox(width: 4),
         Text(
@@ -789,48 +880,50 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
 
   Widget _buildLoadingState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: CircularProgressIndicator(
-              color: AppTheme.colorScheme.primary,
-              strokeWidth: 3,
+      child: _buildGlassmorphicCard(
+        borderRadius: 20,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
+                color: AppTheme.colorScheme.primary,
+                strokeWidth: 3,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Cargando mapa...',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Iconsax.timer,
+                  size: 16,
+                  color: Colors.grey[700],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Cargando mapa...',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
     return Center(
-      child: Container(
+      child: _buildGlassmorphicCard(
+        borderRadius: 20,
         padding: const EdgeInsets.all(24),
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[200]!),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              spreadRadius: 0,
-            ),
-          ],
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -841,7 +934,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.map_outlined,
+                Iconsax.map_1,
                 size: 48,
                 color: Colors.blue[400],
               ),
@@ -872,25 +965,14 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
 
   Widget _buildNoLocationsOverlay() {
     return Center(
-      child: Container(
+      child: _buildGlassmorphicCard(
+        borderRadius: 16,
         padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              spreadRadius: 0,
-            ),
-          ],
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.location_off,
+              Iconsax.location_slash,
               size: 32,
               color: Colors.grey[400],
             ),

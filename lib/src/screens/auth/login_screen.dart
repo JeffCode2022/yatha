@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import '../../../src/providers/auth_provider.dart';
 import '../../../src/providers/kpi_provider.dart';
 
@@ -68,13 +69,23 @@ class _LoginScreenState extends State<LoginScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: Text(
-            'Recuperación de contraseña',
-            style: TextStyle(
-              color: colorGreen,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+          title: Row(
+            children: [
+              Icon(
+                Iconsax.key, // Iconsax para recuperación de contraseña
+                color: colorGreen,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Recuperación de contraseña',
+                style: TextStyle(
+                  color: colorGreen,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
           ),
           content: Text(
             'Para recuperar la contraseña contacte con el área de soporte.',
@@ -84,14 +95,19 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
           actions: [
-            TextButton(
+            TextButton.icon(
               onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: colorGreen,
+              icon: Icon(
+                Iconsax.tick_circle, // Iconsax para aceptar
+                size: 16,
+                color: colorGreen,
               ),
-              child: const Text(
+              label: const Text(
                 'Aceptar',
                 style: TextStyle(fontSize: 14),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: colorGreen,
               ),
             ),
           ],
@@ -113,9 +129,9 @@ class _LoginScreenState extends State<LoginScreen>
           title: Row(
             children: [
               Icon(
-                Icons.error_outline,
+                Iconsax.danger, // Iconsax para error
                 color: colorError,
-                size: 24,
+                size: 20,
               ),
               const SizedBox(width: 10),
               Text(
@@ -136,14 +152,19 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
           actions: [
-            TextButton(
+            TextButton.icon(
               onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: colorGreen,
+              icon: Icon(
+                Iconsax.tick_circle, // Iconsax para aceptar
+                size: 16,
+                color: colorGreen,
               ),
-              child: const Text(
+              label: const Text(
                 'Aceptar',
                 style: TextStyle(fontSize: 14),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: colorGreen,
               ),
             ),
           ],
@@ -280,13 +301,23 @@ class _LoginScreenState extends State<LoginScreen>
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  "Iniciar Sesión",
-                                  style: TextStyle(
-                                    color: colorDarkText,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                  ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Iconsax.login, // Iconsax para login
+                                      color: colorDarkText,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "Iniciar Sesión",
+                                      style: TextStyle(
+                                        color: colorDarkText,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 8),
                                 Container(
@@ -303,13 +334,23 @@ class _LoginScreenState extends State<LoginScreen>
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  "Email",
-                                  style: TextStyle(
-                                    color: colorDarkText,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Iconsax.sms, // Iconsax para email
+                                      color: colorDarkText,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "Email",
+                                      style: TextStyle(
+                                        color: colorDarkText,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 8),
                                 TextFormField(
@@ -334,6 +375,11 @@ class _LoginScreenState extends State<LoginScreen>
                                       horizontal: 16,
                                       vertical: 14,
                                     ),
+                                    prefixIcon: Icon(
+                                      Iconsax.user, // Iconsax para usuario
+                                      color: colorLightText,
+                                      size: 18,
+                                    ),
                                     errorStyle: TextStyle(
                                       color: colorError,
                                       fontSize: 12,
@@ -348,12 +394,22 @@ class _LoginScreenState extends State<LoginScreen>
                                   Padding(
                                     padding:
                                         const EdgeInsets.only(top: 6, left: 4),
-                                    child: Text(
-                                      "Ingresa tu correo",
-                                      style: TextStyle(
-                                        color: colorError,
-                                        fontSize: 12,
-                                      ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Iconsax.info_circle, // Iconsax para información
+                                          color: colorError,
+                                          size: 12,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "Ingresa tu correo",
+                                          style: TextStyle(
+                                            color: colorError,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                               ],
@@ -365,13 +421,23 @@ class _LoginScreenState extends State<LoginScreen>
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  "Password",
-                                  style: TextStyle(
-                                    color: colorDarkText,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Iconsax.password_check, // Iconsax para contraseña
+                                      color: colorDarkText,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "Password",
+                                      style: TextStyle(
+                                        color: colorDarkText,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 8),
                                 TextFormField(
@@ -397,13 +463,18 @@ class _LoginScreenState extends State<LoginScreen>
                                       horizontal: 16,
                                       vertical: 14,
                                     ),
+                                    prefixIcon: Icon(
+                                      Iconsax.lock, // Iconsax para candado
+                                      color: colorLightText,
+                                      size: 18,
+                                    ),
                                     suffixIcon: IconButton(
                                       icon: Icon(
                                         _obscurePassword
-                                            ? Icons.visibility_off_outlined
-                                            : Icons.visibility_outlined,
+                                            ? Iconsax.eye_slash // Iconsax para ocultar contraseña
+                                            : Iconsax.eye, // Iconsax para mostrar contraseña
                                         color: colorLightText,
-                                        size: 20,
+                                        size: 18,
                                       ),
                                       onPressed: () {
                                         setState(() => _obscurePassword =
@@ -424,12 +495,22 @@ class _LoginScreenState extends State<LoginScreen>
                                   Padding(
                                     padding:
                                         const EdgeInsets.only(top: 6, left: 4),
-                                    child: Text(
-                                      "Ingresa tu contraseña",
-                                      style: TextStyle(
-                                        color: colorError,
-                                        fontSize: 12,
-                                      ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Iconsax.info_circle, // Iconsax para información
+                                          color: colorError,
+                                          size: 12,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          "Ingresa tu contraseña",
+                                          style: TextStyle(
+                                            color: colorError,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                               ],
@@ -438,8 +519,20 @@ class _LoginScreenState extends State<LoginScreen>
                             // Olvidó su contraseña
                             Align(
                               alignment: Alignment.centerRight,
-                              child: TextButton(
+                              child: TextButton.icon(
                                 onPressed: _showPasswordRecoveryModal,
+                                icon: Icon(
+                                  Iconsax.key, // Iconsax para llave/contraseña
+                                  size: 14,
+                                  color: colorGreen,
+                                ),
+                                label: Text(
+                                  "¿Olvidó su contraseña?",
+                                  style: TextStyle(
+                                    color: colorGreen,
+                                    fontSize: 13,
+                                  ),
+                                ),
                                 style: TextButton.styleFrom(
                                   foregroundColor: colorGreen,
                                   padding: EdgeInsets.zero,
@@ -447,21 +540,38 @@ class _LoginScreenState extends State<LoginScreen>
                                   tapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                child: Text(
-                                  "¿Olvidó su contraseña?",
-                                  style: TextStyle(
-                                    color: colorGreen,
-                                    fontSize: 13,
-                                  ),
-                                ),
                               ),
                             ),
 
                             const SizedBox(height: 30),
 
                             // Botón de INGRESAR
-                            ElevatedButton(
+                            ElevatedButton.icon(
                               onPressed: _isLoading ? null : _login,
+                              icon: _isLoading
+                                  ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: colorWhite,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Icon(
+                                      Iconsax.login, // Iconsax para login
+                                      size: 18,
+                                      color: colorWhite,
+                                    ),
+                              label: _isLoading
+                                  ? const Text('')
+                                  : const Text(
+                                      'INGRESAR',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: colorGreen,
                                 foregroundColor: colorWhite,
@@ -472,23 +582,6 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 elevation: 0,
                               ),
-                              child: _isLoading
-                                  ? SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        color: colorWhite,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'INGRESAR',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
                             ),
                           ],
                         ),

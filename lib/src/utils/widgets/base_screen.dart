@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:get/get.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import '../../providers/auth_provider.dart';
 import '../../providers/kpi_provider.dart';
 import '../../providers/loan_provider.dart';
@@ -17,6 +18,7 @@ class BaseScreen extends StatelessWidget {
   final bool showDrawer;
   final List<Widget>? actions;
   final Widget? bottomNavigationBar;
+  final IconData? titleIcon; // Cambiado a IconData para usar Iconsax
 
   const BaseScreen({
     Key? key,
@@ -25,6 +27,7 @@ class BaseScreen extends StatelessWidget {
     this.showDrawer = true,
     this.actions,
     this.bottomNavigationBar,
+    this.titleIcon,
   }) : super(key: key);
 
   Future<void> _handleLogout(BuildContext context) async {
@@ -59,13 +62,21 @@ class BaseScreen extends StatelessWidget {
           backgroundColor: Colors.white,
           drawer: showDrawer ? _buildDrawer(context, authProvider) : null,
           appBar: AppBar(
-            title: Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            title: Row(
+              children: [
+                if (titleIcon != null) ...[
+                  Icon(titleIcon, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             backgroundColor: AppTheme.colorScheme.primary,
             elevation: 0,
@@ -100,14 +111,14 @@ class BaseScreen extends StatelessWidget {
                 if (isSupervisor) ...[
                   _buildDrawerItem(
                     context: context,
-                    icon: Icons.analytics,
+                    icon: Iconsax.chart, // Iconsax para KPIs
                     title: 'KPIs de Gestores',
                     route: AppRoutes.supervisorKpis,
                     isSelected: title == 'KPIs de Gestores',
                   ),
                   _buildDrawerItem(
                     context: context,
-                    icon: Icons.map,
+                    icon: Iconsax.location, // Iconsax para mapa
                     title: 'Mapa de Cobros',
                     route: AppRoutes.supervisorMap,
                     isSelected: title == 'Mapa de Cobros',
@@ -115,23 +126,24 @@ class BaseScreen extends StatelessWidget {
                 ] else ...[
                   _buildDrawerItem(
                     context: context,
-                    icon: Icons.account_balance_wallet,
+                    icon: Iconsax.wallet, // Iconsax para préstamos
                     title: 'Mis Préstamos',
                     route: AppRoutes.gestorLoans,
                     isSelected: title == 'Mis Préstamos',
                   ),
                   _buildDrawerItem(
                     context: context,
-                    icon: Icons.map,
+                    icon: Iconsax.location, // Iconsax para mapa
                     title: 'Mapa de Cobros',
                     route: AppRoutes.gestorMap,
                     isSelected: title == 'Mapa de Cobros',
                   ),
+                  
                 ],
                 const Divider(height: 32),
                 _buildDrawerItem(
                   context: context,
-                  icon: Icons.logout,
+                  icon: Iconsax.logout, // Iconsax para cerrar sesión
                   title: 'Cerrar Sesión',
                   route: AppRoutes.login,
                   isSelected: false,
@@ -192,12 +204,22 @@ class BaseScreen extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        'ID: ${authProvider.user?.uid ?? 'No ID'}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            Iconsax.card, // Iconsax para ID
+                            size: 12,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'ID: ${authProvider.user?.uid ?? 'No ID'}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -215,15 +237,28 @@ class BaseScreen extends StatelessWidget {
                   width: 1,
                 ),
               ),
-              child: Text(
-                authProvider.user?.role == 'supervisor'
-                    ? 'Supervisor'
-                    : 'Gestor',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    authProvider.user?.role == 'supervisor'
+                        ? Iconsax.people // Iconsax para supervisor
+                        : Iconsax.briefcase, // Iconsax para gestor
+                    size: 12,
+                    color: AppTheme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    authProvider.user?.role == 'supervisor'
+                        ? 'Supervisor'
+                        : 'Gestor',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -317,12 +352,22 @@ class BaseScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
-          'Cerrar Sesión',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Row(
+          children: [
+            Icon(
+              Iconsax.logout, // Iconsax para cerrar sesión
+              size: 18,
+              color: Colors.red[700],
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Cerrar Sesión',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
         content: const Text(
           '¿Estás seguro que deseas cerrar sesión?',
@@ -375,12 +420,23 @@ class BaseScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       alignment: Alignment.center,
-      child: Text(
-        'Yatha App v1.0.0',
-        style: TextStyle(
-          color: Colors.grey[500],
-          fontSize: 12,
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Iconsax.code, // Iconsax para versión
+            size: 12,
+            color: Colors.grey[500],
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Yatha App v1.0.0',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 12,
+            ),
+          ),
+        ],
       ),
     );
   }

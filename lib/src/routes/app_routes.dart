@@ -20,7 +20,8 @@ class AppRoutes {
   static const String supervisorKpis = '/supervisor/kpis';
   static const String supervisorMap = '/supervisor/map';
   static const String loanDetail = '/loan-detail';
-
+  static const String supervisorProfile = '/supervisor/profile';
+  
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case login:

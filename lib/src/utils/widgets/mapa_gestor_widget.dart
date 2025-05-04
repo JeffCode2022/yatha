@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import '../../services/cliente_service.dart';
 import 'dart:developer' as developer;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
+import '../../utils/theme/app_theme.dart';
 
 class CustomTileProvider extends TileProvider {
   final http.Client _client = http.Client();
@@ -125,7 +127,17 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
 
       if (!serviceEnabled) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor activa el GPS')),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Iconsax.location_slash,
+                    color: Colors.white,
+                    size: 16), // Iconsax para ubicación desactivada
+                const SizedBox(width: 8),
+                const Text('Por favor activa el GPS'),
+              ],
+            ),
+          ),
         );
         return;
       }
@@ -139,7 +151,17 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
 
         if (permission == LocationPermission.denied) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Se necesitan permisos de ubicación')),
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Iconsax.location_slash,
+                      color: Colors.white,
+                      size: 16), // Iconsax para ubicación desactivada
+                  const SizedBox(width: 8),
+                  const Text('Se necesitan permisos de ubicación'),
+                ],
+              ),
+            ),
           );
           return;
         }
@@ -191,8 +213,8 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.location_on,
+              child: Icon(
+                Iconsax.location, // Iconsax en lugar de Material Icons
                 color: Colors.blue,
                 size: 24,
               ),
@@ -287,11 +309,33 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                 showDialog(
                   context: context,
                   builder: (_) => AlertDialog(
-                    title: const Text('Préstamos en esta ubicación'),
+                    title: Row(
+                      children: [
+                        Icon(Iconsax.wallet,
+                            color: Colors
+                                .green), // Iconsax en lugar de Material Icons
+                        const SizedBox(width: 8),
+                        const Flexible(
+                          child: Text(
+                            'Préstamos en esta ubicación',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: prestamosEnUbicacion.map((prestamo) {
                         return ListTile(
+                          leading: Icon(Iconsax.profile_circle,
+                              color: Colors
+                                  .green), // Iconsax en lugar de Material Icons
                           title: Text(
                             prestamo['partner_id'] != null &&
                                     prestamo['partner_id'] is List
@@ -313,9 +357,27 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                       }).toList(),
                     ),
                     actions: [
-                      TextButton(
+                      TextButton.icon(
+                        onPressed: () {
+                          final double lat = double.tryParse(
+                                  prestamosEnUbicacion[0]['partner_latitude']
+                                      .toString()) ??
+                              0.0;
+                          final double lng = double.tryParse(
+                                  prestamosEnUbicacion[0]['partner_longitude']
+                                      .toString()) ??
+                              0.0;
+                          final url =
+                              'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
+                          launchUrl(Uri.parse(url));
+                        },
+                        icon: Icon(Iconsax.routing, size: 16),
+                        label: const Text('Abrir en Maps'),
+                      ),
+                      TextButton.icon(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('Cerrar'),
+                        icon: Icon(Iconsax.close_circle, size: 16),
+                        label: const Text('Cerrar'),
                       ),
                     ],
                   ),
@@ -337,8 +399,9 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.person_pin,
+                    child: Icon(
+                      Iconsax
+                          .profile_circle, // Iconsax en lugar de Material Icons
                       color: Colors.green,
                       size: 24,
                     ),
@@ -407,7 +470,16 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al cargar los préstamos')),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Iconsax.danger,
+                  color: Colors.white, size: 16), // Iconsax para error
+              const SizedBox(width: 8),
+              const Text('Error al cargar los préstamos'),
+            ],
+          ),
+        ),
       );
     }
   }
@@ -450,7 +522,8 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.person, color: Colors.green),
+            Icon(Iconsax.profile_circle,
+                color: Colors.green), // Iconsax en lugar de Material Icons
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -467,43 +540,82 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Préstamo: ${prestamo['name']}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 16,
-              ),
+            Row(
+              children: [
+                Icon(Iconsax.document,
+                    size: 16,
+                    color:
+                        Colors.grey[700]), // Iconsax en lugar de Material Icons
+                const SizedBox(width: 8),
+                Text(
+                  'Préstamo: ${prestamo['name']}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            Text(
-              'Monto a cobrar: S/. ${(prestamo['amount'] ?? 0.0).toStringAsFixed(2)}',
-              style: const TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+            Row(
+              children: [
+                Icon(Iconsax.money,
+                    size: 16,
+                    color: Colors.green), // Iconsax en lugar de Material Icons
+                const SizedBox(width: 8),
+                Text(
+                  'Monto a cobrar: S/. ${(prestamo['amount'] ?? 0.0).toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            Text(
-              'Fecha de cobro: ${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-              ),
+            Row(
+              children: [
+                Icon(Iconsax.calendar,
+                    size: 16,
+                    color:
+                        Colors.grey[700]), // Iconsax en lugar de Material Icons
+                const SizedBox(width: 8),
+                Text(
+                  'Fecha de cobro: ${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Dirección:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Icon(Iconsax.location,
+                    size: 16,
+                    color:
+                        Colors.grey[700]), // Iconsax en lugar de Material Icons
+                const SizedBox(width: 8),
+                const Text(
+                  'Dirección:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
-            Text(prestamo['partner_address'] ?? 'No disponible'),
+            Padding(
+              padding: const EdgeInsets.only(left: 24.0),
+              child: Text(prestamo['partner_address'] ?? 'No disponible'),
+            ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => _openInMaps(position),
-                icon: const Icon(Icons.directions),
+                icon:
+                    Icon(Iconsax.routing), // Iconsax en lugar de Material Icons
                 label: const Text('Abrir en Maps'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
@@ -518,9 +630,11 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
           ],
         ),
         actions: [
-          TextButton(
+          TextButton.icon(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            icon: Icon(Iconsax.close_circle,
+                size: 16), // Iconsax en lugar de Material Icons
+            label: const Text('Cerrar'),
           ),
         ],
       ),
@@ -539,7 +653,16 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el mapa')),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Iconsax.danger,
+                    color: Colors.white, size: 16), // Iconsax para error
+                const SizedBox(width: 8),
+                const Text('No se pudo abrir el mapa'),
+              ],
+            ),
+          ),
         );
       }
     }
@@ -609,7 +732,8 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                 child: Column(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.zoom_in),
+                      icon: Icon(Iconsax
+                          .search_zoom_in,color: AppTheme.colorScheme.primary,), // Iconsax en lugar de Material Icons
                       onPressed: () {
                         final currentZoom = _mapController.camera.zoom;
                         _mapController.move(
@@ -624,7 +748,8 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                       color: Colors.grey[300],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.zoom_out),
+                      icon: Icon(Iconsax
+                          .search_zoom_out,color: AppTheme.colorScheme.primary,), // Iconsax en lugar de Material Icons
                       onPressed: () {
                         final currentZoom = _mapController.camera.zoom;
                         _mapController.move(
@@ -645,8 +770,32 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
             filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
             child: Container(
               color: Colors.black.withOpacity(0.3),
-              child: const Center(
-                child: CircularProgressIndicator(),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Iconsax.timer, // Iconsax para cargando
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Cargando mapa...',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -684,37 +833,31 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
-                          child: Text(
-                            'Cobros del ${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}',
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF34C759).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0xFF34C759).withOpacity(0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            '${_prestamos.length} clientes',
-                            style: const TextStyle(
-                              color: Color(0xFF34C759),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.3,
-                            ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Iconsax.calendar,
+                                size: 16,
+                                color: Colors.black87,
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width *
+                                            0.6),
+                                child: Text(
+                                  'Cobros del ${widget.selectedDate.day}/${widget.selectedDate.month}/${widget.selectedDate.year}',
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                    letterSpacing: -0.5,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -749,34 +892,57 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    SizedBox(
-                                      width: constraints.maxWidth,
-                                      child: Text(
-                                        prestamo['partner_id'] != null &&
-                                                prestamo['partner_id'] is List
-                                            ? prestamo['partner_id'][1]
-                                            : 'Sin nombre',
-                                        style: const TextStyle(
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Iconsax
+                                              .profile_circle, // Iconsax en lugar de Material Icons
+                                          size: 14,
                                           color: Colors.black87,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: -0.3,
                                         ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                        const SizedBox(width: 4),
+                                        SizedBox(
+                                          width: constraints.maxWidth - 18,
+                                          child: Text(
+                                            prestamo['partner_id'] != null &&
+                                                    prestamo['partner_id']
+                                                        is List
+                                                ? prestamo['partner_id'][1]
+                                                : 'Sin nombre',
+                                            style: const TextStyle(
+                                              color: Colors.black87,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: -0.3,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(height: 4),
-                                    SizedBox(
-                                      width: constraints.maxWidth,
-                                      child: Text(
-                                        'Préstamo: ${prestamo['name']}',
-                                        style: const TextStyle(
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Iconsax
+                                              .document, // Iconsax en lugar de Material Icons
+                                          size: 12,
                                           color: Color(0xFF8E8E93),
-                                          fontSize: 13,
-                                          letterSpacing: -0.2,
                                         ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                        const SizedBox(width: 4),
+                                        SizedBox(
+                                          width: constraints.maxWidth - 16,
+                                          child: Text(
+                                            'Préstamo: ${prestamo['name']}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF8E8E93),
+                                              fontSize: 13,
+                                              letterSpacing: -0.2,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -789,6 +955,46 @@ class _MapaGestorWidgetState extends State<MapaGestorWidget> {
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 16,
+          left: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Iconsax.location, // Iconsax para ubicación
+                  size: 12,
+                  color: Colors.green,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Mapa de cobros',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

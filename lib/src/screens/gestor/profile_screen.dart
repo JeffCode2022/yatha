@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import 'dart:ui';
 import 'package:yatha_app/src/providers/auth_provider.dart';
 import 'package:yatha_app/src/providers/kpi_provider.dart';
@@ -106,19 +107,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                             const SizedBox(height: 12),
                             _buildInfoCard([
                               _buildInfoItem(
-                                icon: Icons.person,
+                                icon: Iconsax.user, // Iconsax en lugar de Material Icons
                                 label: 'Usuario',
                                 value: userEmail,
                                 iconColor: Colors.blue,
                               ),
                               _buildInfoItem(
-                                icon: Icons.badge,
+                                icon: Iconsax.card, // Iconsax en lugar de Material Icons
                                 label: 'ID de Usuario',
                                 value: userId,
                                 iconColor: Colors.purple,
                               ),
                               _buildInfoItem(
-                                icon: Icons.work,
+                                icon: Iconsax.briefcase, // Iconsax en lugar de Material Icons
                                 label: 'Rol',
                                 value: userRole,
                                 iconColor: Colors.orange,
@@ -227,12 +228,23 @@ class _ProfileScreenState extends State<ProfileScreen>
         const SizedBox(height: 8),
 
         // Email
-        Text(
-          userEmail,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Iconsax.sms, // Iconsax en lugar de Material Icons
+              size: 14,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(width: 4),
+            Text(
+              userEmail,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
 
@@ -243,13 +255,26 @@ class _ProfileScreenState extends State<ProfileScreen>
             color: AppTheme.colorScheme.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(
-            rolText,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.colorScheme.primary,
-              fontWeight: FontWeight.w500,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                userRole == 'supervisor' 
+                    ? Iconsax.people // Iconsax para supervisor
+                    : Iconsax.briefcase, // Iconsax para gestor
+                size: 14,
+                color: AppTheme.colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                rolText,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -268,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
-              Icons.person_outline,
+              Iconsax.profile_circle, // Iconsax en lugar de Material Icons
               color: AppTheme.colorScheme.primary,
               size: 14,
             ),
@@ -389,7 +414,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             side: BorderSide(color: Colors.red[200]!),
           ),
         ),
-        icon: Icon(Icons.logout_rounded, size: 16),
+        icon: Icon(Iconsax.logout, size: 16), // Iconsax en lugar de Material Icons
         label: Text(
           'Cerrar Sesión',
           style: TextStyle(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import 'package:intl/intl.dart';
 
 class DatePicker extends StatelessWidget {
@@ -60,7 +61,7 @@ class DatePicker extends StatelessWidget {
                   ),
                 ),
                 Icon(
-                  Icons.calendar_today,
+                  Iconsax.calendar,
                   size: 16,
                   color: Colors.grey[600],
                 ),

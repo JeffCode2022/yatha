@@ -43,8 +43,7 @@ class SupervisorMapService {
                 ["payment_date", "=", formattedDate],
                 ["payment_status", "=", "pending"],
                 ["loan_id.partner_latitude", "!=", false],
-                ["loan_id.partner_longitude", "!=", false],
-                ["loan_id.partner_street", "!=", false]
+                ["loan_id.partner_longitude", "!=", false]
               ],
               [
                 "id",

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import 'dart:ui';
 import 'package:yatha_app/src/providers/auth_provider.dart';
 import 'package:yatha_app/src/providers/kpi_provider.dart';
@@ -14,7 +15,8 @@ class NewKpiScreen extends StatefulWidget {
   State<NewKpiScreen> createState() => _NewKpiScreenState();
 }
 
-class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderStateMixin {
+class _NewKpiScreenState extends State<NewKpiScreen>
+    with SingleTickerProviderStateMixin {
   late DateTime _selectedDate;
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _filteredPayments = [];
@@ -38,7 +40,7 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
       parent: _animationController,
       curve: Curves.easeIn,
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
@@ -174,7 +176,7 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
             actions: [
               IconButton(
                 icon: Icon(
-                  Icons.calendar_month_outlined,
+                  Iconsax.calendar_1, // Iconsax en lugar de Material Icons
                   color: AppTheme.colorScheme.primary,
                 ),
                 onPressed: () => _selectDate(context),
@@ -205,7 +207,8 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                               _buildProgressCard(kpiProvider),
                               const SizedBox(height: 20),
                               _buildPaymentsList(kpiProvider),
-                              const SizedBox(height: 80), // Espacio adicional al final
+                              const SizedBox(
+                                  height: 80), // Espacio adicional al final
                             ],
                           ),
                         ),
@@ -225,7 +228,9 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                   onPressed: _loadKpis,
                   backgroundColor: AppTheme.colorScheme.primary,
                   elevation: 2,
-                  child: const Icon(Icons.refresh, color: Colors.white),
+                  child: Icon(Iconsax.refresh,
+                      color:
+                          Colors.white), // Iconsax en lugar de Material Icons
                 ),
               );
             },
@@ -266,12 +271,23 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Cargando datos...',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Iconsax.timer, // Iconsax en lugar de Material Icons
+                      size: 16,
+                      color: Colors.grey[700],
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Cargando datos...',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -307,7 +323,9 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                 color: Colors.red[50],
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.error_outline, size: 48, color: Colors.red[400]),
+              child: Icon(Iconsax.danger,
+                  size: 48,
+                  color: Colors.red[400]), // Iconsax en lugar de Material Icons
             ),
             const SizedBox(height: 20),
             Text(
@@ -336,13 +354,15 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.colorScheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
                 elevation: 0,
               ),
-              icon: const Icon(Icons.refresh, size: 16),
+              icon: Icon(Iconsax.refresh,
+                  size: 16), // Iconsax en lugar de Material Icons
               label: const Text(
                 'Reintentar',
                 style: TextStyle(
@@ -371,7 +391,7 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.calendar_today,
+            Iconsax.calendar, // Iconsax en lugar de Material Icons
             size: 16,
             color: AppTheme.colorScheme.primary,
           ),
@@ -423,7 +443,7 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      Icons.insights,
+                      Iconsax.chart, // Iconsax en lugar de Material Icons
                       color: AppTheme.colorScheme.primary,
                       size: 16,
                     ),
@@ -439,7 +459,8 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: _getEfficiencyColor(double.parse(efficiency))
                       .withOpacity(0.1),
@@ -577,24 +598,27 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
   }
 
   Color _getEfficiencyColor(double efficiency) {
-    if (efficiency >= 100) return Colors.green;
-    if (efficiency >= 70) return Colors.blue;
+    if (efficiency >= 100) return const Color.fromARGB(255, 26, 206, 50);
+    if (efficiency >= 70) return const Color.fromARGB(255, 31, 179, 199);
     if (efficiency >= 50) return Colors.orange;
-    return Colors.red;
+    return const Color.fromARGB(255, 234, 71, 38);
   }
 
   IconData _getEfficiencyIcon(double efficiency) {
-    if (efficiency >= 100) return Icons.emoji_events;
-    if (efficiency >= 70) return Icons.trending_up;
-    if (efficiency >= 50) return Icons.trending_flat;
-    return Icons.trending_down;
+    if (efficiency >= 100)
+      return Iconsax.medal; // Iconsax en lugar de Material Icons
+    if (efficiency >= 70)
+      return Iconsax.trend_up; // Iconsax en lugar de Material Icons
+    if (efficiency >= 50)
+      return Iconsax.arrow_right_3; // Iconsax en lugar de Material Icons
+    return Iconsax.trend_down; // Iconsax en lugar de Material Icons
   }
 
   Color _getProgressColor(double progress) {
-    if (progress >= 1.0) return Colors.green;
-    if (progress >= 0.7) return Colors.blue;
+    if (progress >= 1.0) return const Color.fromARGB(255, 26, 206, 50);
+    if (progress >= 0.7) return const Color.fromARGB(255, 31, 179, 199);
     if (progress >= 0.5) return Colors.orange;
-    return Colors.red;
+    return const Color.fromARGB(255, 234, 71, 38);
   }
 
   Widget _buildPaymentStatusIndicators(KpiProvider provider) {
@@ -605,19 +629,19 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
           'A tiempo',
           provider.statusCounts['ontime'] ?? 0,
           Colors.green,
-          Icons.check_circle_outline,
+          Iconsax.tick_circle, // Iconsax en lugar de Material Icons
         ),
         _buildStatusIndicator(
           'Tardíos',
           provider.statusCounts['late'] ?? 0,
           Colors.orange,
-          Icons.warning_amber_outlined,
+          Iconsax.warning_2, // Iconsax en lugar de Material Icons
         ),
         _buildStatusIndicator(
           'Pendientes',
           provider.statusCounts['pending'] ?? 0,
           Colors.grey,
-          Icons.schedule,
+          Iconsax.timer, // Iconsax en lugar de Material Icons
         ),
       ],
     );
@@ -687,7 +711,7 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
-                  Icons.receipt_long,
+                  Iconsax.receipt_2, // Iconsax en lugar de Material Icons
                   color: AppTheme.colorScheme.primary,
                   size: 14,
                 ),
@@ -743,7 +767,7 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.check_circle_outline,
+              Iconsax.clipboard_tick, // Iconsax en lugar de Material Icons
               size: 32,
               color: Colors.blue[400],
             ),
@@ -777,7 +801,9 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            icon: Icon(Icons.calendar_today, size: 14, color: Colors.blue[700]),
+            icon: Icon(Iconsax.calendar_1,
+                size: 14,
+                color: Colors.blue[700]), // Iconsax en lugar de Material Icons
             label: Text(
               'Cambiar fecha',
               style: TextStyle(
@@ -806,7 +832,9 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
         style: const TextStyle(color: Colors.black87, fontSize: 14),
         decoration: InputDecoration(
           hintText: 'Buscar pago...',
-          prefixIcon: Icon(Icons.search, color: Colors.grey[600], size: 16),
+          prefixIcon: Icon(Iconsax.search_normal,
+              color: Colors.grey[600],
+              size: 16), // Iconsax en lugar de Material Icons
           border: InputBorder.none,
           hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
@@ -850,7 +878,8 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
               ],
             ),
             child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              tilePadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               title: Row(
                 children: [
                   Container(
@@ -865,7 +894,9 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                     ),
                     child: Center(
                       child: Text(
-                        clientName.isNotEmpty ? clientName[0].toUpperCase() : '?',
+                        clientName.isNotEmpty
+                            ? clientName[0].toUpperCase()
+                            : '?',
                         style: TextStyle(
                           color: statusInfo['color'],
                           fontWeight: FontWeight.bold,
@@ -911,7 +942,8 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(statusInfo['icon'], size: 12, color: statusInfo['color']),
+                    Icon(statusInfo['icon'],
+                        size: 12, color: statusInfo['color']),
                     const SizedBox(width: 4),
                     Text(
                       statusInfo['text'],
@@ -939,7 +971,9 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
                       ...paymentDetails.map((detail) => _buildPaymentDetail(
                             detail['label'],
                             detail['value'].toString().startsWith('\$')
-                                ? detail['value'].toString().replaceFirst('\$', 'S/.')
+                                ? detail['value']
+                                    .toString()
+                                    .replaceFirst('\$', 'S/.')
                                 : detail['value'],
                           )),
                     ],
@@ -983,20 +1017,20 @@ class _NewKpiScreenState extends State<NewKpiScreen> with SingleTickerProviderSt
       case 'ontime':
         return {
           'color': Colors.green,
-          'icon': Icons.check_circle_outline,
+          'icon': Iconsax.tick_circle, // Iconsax en lugar de Material Icons
           'text': 'A tiempo'
         };
       case 'late':
         return {
           'color': Colors.orange,
-          'icon': Icons.warning_amber_outlined,
+          'icon': Iconsax.warning_2, // Iconsax en lugar de Material Icons
           'text': 'Tardío'
         };
       case 'pending':
       default:
         return {
           'color': Colors.grey,
-          'icon': Icons.schedule,
+          'icon': Iconsax.timer, // Iconsax en lugar de Material Icons
           'text': 'Pendiente'
         };
     }

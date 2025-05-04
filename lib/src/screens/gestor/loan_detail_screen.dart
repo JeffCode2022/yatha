@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import '../../../src/providers/auth_provider.dart';
 import '../../../src/providers/loan_provider.dart';
 import '../../utils/theme/app_theme.dart';
@@ -87,7 +88,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.account_balance_wallet_outlined,
+                    Iconsax.wallet_minus, // Iconsax en lugar de Material Icons
                     size: 64,
                     color: Colors.grey[300],
                   ),
@@ -130,7 +131,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
             actions: [
               IconButton(
                 icon: Icon(
-                  Icons.refresh,
+                  Iconsax.refresh, // Iconsax en lugar de Material Icons
                   color: AppTheme.colorScheme.primary,
                   size: 20,
                 ),
@@ -304,6 +305,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                     'Monto',
                     'S/. ${amount.toStringAsFixed(2)}',
                     Colors.grey[800]!,
+                    Iconsax.money, // Iconsax en lugar de texto
                   ),
                 ),
                 Container(
@@ -316,6 +318,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                     'Recaudado',
                     'S/. ${totalCollected.toStringAsFixed(2)}',
                     AppTheme.colorScheme.primary,
+                    Iconsax.money_recive, // Iconsax en lugar de texto
                   ),
                 ),
               ],
@@ -334,6 +337,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                     'Por Cobrar',
                     'S/. ${remainingAmount.toStringAsFixed(2)}',
                     Colors.red,
+                    Iconsax.money_send, // Iconsax en lugar de texto
                   ),
                 ),
                 Container(
@@ -346,6 +350,9 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                     'Tipo',
                     paymentPeriod == 'monthly' ? 'Mensual' : 'Diario',
                     Colors.grey[800]!,
+                    paymentPeriod == 'monthly'
+                        ? Iconsax.calendar
+                        : Iconsax.clock, // Iconsax según el tipo
                   ),
                 ),
               ],
@@ -365,6 +372,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                     pendingInstallments,
                     payments.length,
                     Colors.red,
+                    Iconsax.timer, // Iconsax en lugar de texto
                   ),
                 ),
                 Container(
@@ -378,6 +386,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                     paidInstallments,
                     payments.length,
                     AppTheme.colorScheme.primary,
+                    Iconsax.tick_circle, // Iconsax en lugar de texto
                   ),
                 ),
               ],
@@ -388,27 +397,47 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
     );
   }
 
-  Widget _buildInfoItem(String label, String value, Color valueColor) {
+  Widget _buildInfoItem(
+      String label, String value, Color valueColor, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: valueColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              color: valueColor,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: valueColor,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: valueColor,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -416,40 +445,59 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
     );
   }
 
-  Widget _buildInfoItemWithFraction(
-      String label, int numerator, int denominator, Color valueColor) {
+  Widget _buildInfoItemWithFraction(String label, int numerator,
+      int denominator, Color valueColor, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: valueColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              color: valueColor,
             ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Text(
-                '$numerator',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: valueColor,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              Text(
-                ' / $denominator',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      '$numerator',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: valueColor,
+                      ),
+                    ),
+                    Text(
+                      ' / $denominator',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -470,7 +518,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
-                  Icons.receipt_long,
+                  Iconsax.receipt_2, // Iconsax en lugar de Material Icons
                   color: AppTheme.colorScheme.primary,
                   size: 14,
                 ),
@@ -513,7 +561,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.calendar_today_outlined,
+            Iconsax.calendar_1, // Iconsax en lugar de Material Icons
             size: 48,
             color: Colors.grey[300],
           ),
@@ -541,7 +589,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                 ),
               ),
             ),
-            icon: Icon(Icons.refresh, size: 14),
+            icon: Icon(Iconsax.refresh,
+                size: 14), // Iconsax en lugar de Material Icons
             label: Text(
               'Recargar',
               style: TextStyle(
@@ -614,7 +663,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
       }
     }
 
-    // Convertir status a texto y color
+    // Convertir status a texto, color e icono
     String statusText;
     Color statusColor;
     IconData statusIcon;
@@ -623,32 +672,32 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
       case 'paid':
         statusText = 'Pagado';
         statusColor = Colors.green;
-        statusIcon = Icons.check_circle_outline;
+        statusIcon = Iconsax.tick_circle; // Iconsax en lugar de Material Icons
         break;
       case 'overpaid':
         statusText = 'Pago Excedido';
         statusColor = Colors.blue;
-        statusIcon = Icons.check_circle_outline;
+        statusIcon = Iconsax.money_add; // Iconsax en lugar de Material Icons
         break;
       case 'partial':
         statusText = 'Pago Parcial';
         statusColor = Colors.orange;
-        statusIcon = Icons.warning_outlined;
+        statusIcon = Iconsax.timer_1; // Iconsax en lugar de Material Icons
         break;
       case 'on_time':
         statusText = 'Pendiente';
         statusColor = Colors.orange;
-        statusIcon = Icons.warning_outlined;
+        statusIcon = Iconsax.timer; // Iconsax en lugar de Material Icons
         break;
       case 'late':
         statusText = 'Atrasado';
         statusColor = Colors.red;
-        statusIcon = Icons.warning_outlined;
+        statusIcon = Iconsax.danger; // Iconsax en lugar de Material Icons
         break;
       default:
         statusText = 'Pendiente';
         statusColor = Colors.orange;
-        statusIcon = Icons.warning_outlined;
+        statusIcon = Iconsax.timer; // Iconsax en lugar de Material Icons
     }
 
     // Construir el texto del monto pagado para pagos mixtos
@@ -660,13 +709,20 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
         final transferAmount =
             ((payment['paid_amount_transferencia'] ?? 0.0) * 100).round() / 100;
         paymentInfo = [
-          Text(
-            'Efectivo',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
+          Row(
+            children: [
+              Icon(Iconsax.money,
+                  size: 10, color: Colors.grey[600]), // Iconsax para efectivo
+              const SizedBox(width: 4),
+              Text(
+                'Efectivo',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 2),
           Text(
@@ -678,13 +734,21 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            'Transferencia',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
+          Row(
+            children: [
+              Icon(Iconsax.card,
+                  size: 10,
+                  color: Colors.grey[600]), // Iconsax para transferencia
+              const SizedBox(width: 4),
+              Text(
+                'Transferencia',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 2),
           Text(
@@ -740,7 +804,9 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
               ),
               child: Center(
                 child: isPaid
-                    ? Icon(Icons.check, color: statusColor, size: 16)
+                    ? Icon(Iconsax.tick_circle,
+                        color: statusColor,
+                        size: 16) // Iconsax en lugar de Material Icons
                     : Text(
                         (payment['name'] ?? '').toString().split('/').last,
                         style: TextStyle(
@@ -758,13 +824,21 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Fecha: $paymentDate',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                      color: Colors.grey[800],
-                    ),
+                  Row(
+                    children: [
+                      Icon(Iconsax.calendar,
+                          size: 12,
+                          color: Colors.grey[600]), // Iconsax para fecha
+                      const SizedBox(width: 4),
+                      Text(
+                        'Fecha: $paymentDate',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -781,13 +855,22 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                             color: statusColor.withOpacity(0.3),
                           ),
                         ),
-                        child: Text(
-                          statusText,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: statusColor,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon,
+                                size: 10,
+                                color: statusColor), // Iconsax según estado
+                            const SizedBox(width: 2),
+                            Text(
+                              statusText,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: statusColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -799,6 +882,10 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                           ),
                         ),
                       ] else if (isPaid) ...[
+                        Icon(Iconsax.money_tick,
+                            size: 12,
+                            color: statusColor), // Iconsax para dinero
+                        const SizedBox(width: 4),
                         Text(
                           'S/.${paidAmount.toStringAsFixed(2)}',
                           style: TextStyle(
@@ -808,6 +895,10 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                           ),
                         ),
                       ] else ...[
+                        Icon(Iconsax.money,
+                            size: 12,
+                            color: Colors.grey[700]), // Iconsax para dinero
+                        const SizedBox(width: 4),
                         Text(
                           'S/.${((payment['payment_amount'] ?? 0.0) * 100).round() / 100.0}',
                           style: TextStyle(
@@ -840,7 +931,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                icon: const Icon(Icons.payment, size: 14),
+                icon: Icon(Iconsax.money_send,
+                    size: 14), // Iconsax en lugar de Material Icons
                 label: const Text(
                   'Cobrar',
                   style: TextStyle(
@@ -906,22 +998,22 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
       case 'paid':
         statusColor = Colors.green;
         statusText = '¡Pago Completo!';
-        statusIcon = Icons.check_circle_outline;
+        statusIcon = Iconsax.tick_circle; // Iconsax en lugar de Material Icons
         break;
       case 'overpaid':
         statusColor = Colors.green;
         statusText = '¡Pago Excedido!';
-        statusIcon = Icons.check_circle_outline;
+        statusIcon = Iconsax.money_add; // Iconsax en lugar de Material Icons
         break;
       case 'partial':
         statusColor = Colors.orange;
         statusText = 'Pago Parcial';
-        statusIcon = Icons.warning_outlined;
+        statusIcon = Iconsax.timer_1; // Iconsax en lugar de Material Icons
         break;
       default:
         statusColor = Colors.green;
         statusText = '¡Pago Exitoso!';
-        statusIcon = Icons.check_circle_outline;
+        statusIcon = Iconsax.tick_circle; // Iconsax en lugar de Material Icons
     }
 
     overlayEntry = OverlayEntry(
@@ -1058,24 +1150,16 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
           paidAmount = ((payment['paid_amount'] ?? 0.0) * 100).round() / 100;
         }
 
-        print('\nPago ID: ${payment['name']}');
-        print('Estado: $status');
-        print('Monto pagado (redondeado): $paidAmount');
-        print('Monto de cuota: ${payment['payment_amount']}');
+     
 
         total = ((total + paidAmount) * 100).round() / 100;
-        print('Sumando al total: $paidAmount');
-        print('Total acumulado: $total');
+        
       } else {
-        print('\nPago ID: ${payment['name']}');
-        print('Estado: $status');
-        print('Monto pagado: $paidAmount');
-        print('Monto de cuota: ${payment['payment_amount']}');
+     
       }
     }
 
-    print('\nTotal final recaudado (redondeado): $total');
-    print('=== Fin de cálculo ===\n');
+
     return total;
   }
 }

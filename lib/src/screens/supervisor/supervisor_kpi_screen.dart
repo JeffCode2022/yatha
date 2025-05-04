@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import '../../../src/providers/supervisor_provider.dart';
 import '../../utils/widgets/custom_dropdown.dart';
 import '../../utils/widgets/date_picker.dart';
@@ -159,7 +160,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
-                  Icons.insights,
+                  Iconsax.chart, // Iconsax para insights
                   color: AppTheme.colorScheme.primary,
                   size: 14,
                 ),
@@ -289,8 +290,32 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                 Positioned.fill(
                   child: Container(
                     color: Colors.black.withOpacity(0.3),
-                    child: const Center(
-                      child: CircularProgressIndicator(),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Iconsax.timer, // Iconsax para cargando
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Cargando datos...',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -329,7 +354,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
-                  Icons.people,
+                  Iconsax.people, // Iconsax para personas
                   color: AppTheme.colorScheme.primary,
                   size: 14,
                 ),
@@ -394,8 +419,16 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Error al cargar los datos del gestor'),
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            Icon(Iconsax.danger,
+                                color: Colors.white,
+                                size: 16), // Iconsax para error
+                            const SizedBox(width: 8),
+                            const Text('Error al cargar los datos del gestor'),
+                          ],
+                        ),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -441,7 +474,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
-                  Icons.calendar_today,
+                  Iconsax.calendar, // Iconsax para calendario
                   color: AppTheme.colorScheme.primary,
                   size: 14,
                 ),
@@ -505,13 +538,23 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'KPIs por Rango de Fechas',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
+        Row(
+          children: [
+            Icon(
+              Iconsax.chart_2, // Iconsax para estadísticas
+              size: 18,
+              color: Colors.grey[800],
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'KPIs por Rango de Fechas',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         if (supervisorProvider.isLoadingRange)
@@ -562,7 +605,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Icon(
-                      Icons.insights,
+                      Iconsax.chart, // Iconsax para insights
                       color: AppTheme.colorScheme.primary,
                       size: 14,
                     ),
@@ -651,25 +694,25 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
               'Pendientes',
               supervisorProvider.rangePendingCount.toString(),
               Colors.orange,
-              Icons.pending_actions,
+              Iconsax.timer, // Iconsax para pendientes
             ),
             _buildKpiCard(
               'Completados',
               supervisorProvider.rangeCompletedCount.toString(),
               Colors.green,
-              Icons.check_circle,
+              Iconsax.tick_circle, // Iconsax para completados
             ),
             _buildKpiCard(
               'Recaudado',
               currencyFormat.format(supervisorProvider.rangeCollectedAmount),
               Colors.blue,
-              Icons.payments,
+              Iconsax.money, // Iconsax para pagos
             ),
             _buildKpiCard(
               'Total',
               currencyFormat.format(supervisorProvider.rangeTotalAmount),
               Colors.purple,
-              Icons.trending_up,
+              Iconsax.chart_21, // Iconsax para tendencia
             ),
           ],
         ),
@@ -721,13 +764,23 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Eficiencia de Desembolsos',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[800],
-                  fontWeight: FontWeight.w500,
-                ),
+              Row(
+                children: [
+                  Icon(
+                    Iconsax.activity, // Iconsax para eficiencia
+                    size: 14,
+                    color: Colors.grey[800],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Eficiencia de Desembolsos',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
               Text(
                 '${(supervisorProvider.efficiencyPercentage * 100).toStringAsFixed(1)}%',
@@ -755,42 +808,82 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Desemb: ${currencyFormat.format(supervisorProvider.totalDisbursed)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                ),
+              Row(
+                children: [
+                  Icon(
+                    Iconsax.money_send, // Iconsax para desembolso
+                    size: 12,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Desemb: ${currencyFormat.format(supervisorProvider.totalDisbursed)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                'Esp: ${currencyFormat.format(supervisorProvider.expectedAmount)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                ),
+              Row(
+                children: [
+                  Icon(
+                    Iconsax.money_recive, // Iconsax para esperado
+                    size: 12,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Esp: ${currencyFormat.format(supervisorProvider.expectedAmount)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 24),
-          Text(
-            'Detalle de Préstamos',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
+          Row(
+            children: [
+              Icon(
+                Iconsax.document_text, // Iconsax para documentos
+                size: 16,
+                color: Colors.grey[800],
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Detalle de Préstamos',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (supervisorProvider.dailyLoans.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
-                child: Text(
-                  'No hay préstamos para mostrar',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Iconsax.document_1, // Iconsax para documento vacío
+                      size: 40,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No hay préstamos para mostrar',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             )
@@ -813,6 +906,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                     side: BorderSide(color: Colors.grey[200]!),
                   ),
                   child: ExpansionTile(
+                    
                     title: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -838,32 +932,52 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                                 color: Colors.black87,
                               ),
                               maxLines: 1,
-                              minFontSize: 9,
+                              minFontSize: 10,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          loan['partner_id'] != null
-                              ? loan['partner_id'][1]
-                              : 'Cliente sin nombre',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              Iconsax.profile_circle, // Iconsax para cliente
+                              size: 12,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              loan['partner_id'] != null
+                                  ? loan['partner_id'][1]
+                                  : 'Cliente sin nombre',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              loan['create_date'] != null
-                                  ? 'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(loan['create_date']))}'
-                                  : 'Fecha: No disponible',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 13,
-                              ),
+                            Row(
+                              children: [
+                                Icon(
+                                  Iconsax.calendar, // Iconsax para fecha
+                                  size: 12,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  loan['create_date'] != null
+                                      ? 'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(loan['create_date']))}'
+                                      : 'Fecha: No disponible',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -871,8 +985,8 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                     ),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 6,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.orange[50],
@@ -881,13 +995,24 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                           color: Colors.orange[300]!,
                         ),
                       ),
-                      child: Text(
-                        loan['state'] ?? 'Pendiente',
-                        style: TextStyle(
-                          color: Colors.orange[700],
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Iconsax.timer, // Iconsax para estado pendiente
+                            size: 12,
+                            color: Colors.orange[700],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            loan['state'] ?? 'Pendiente',
+                            style: TextStyle(
+                              color: Colors.orange[700],
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     children: [
@@ -898,22 +1023,27 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                             _buildLoanDetailRow(
                               'Monto del Préstamo',
                               currencyFormat.format(loan['loan_amount'] ?? 0),
+                              icon: Iconsax.money, // Iconsax para monto
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 4),
                             _buildLoanDetailRow(
                               'Interés',
                               currencyFormat.format(loan['profit'] ?? 0),
+                              icon:
+                                  Iconsax.money_recive, // Iconsax para interés
                             ),
                             const SizedBox(height: 8),
                             _buildLoanDetailRow(
                               'Total a Pagar',
                               currencyFormat.format(loan['total_amount'] ?? 0),
                               isTotal: true,
+                              icon: Iconsax.money_add, // Iconsax para total
                             ),
                             const SizedBox(height: 8),
                             _buildLoanDetailRow(
                               'Total Pagado',
                               currencyFormat.format(totalPagado),
+                              icon: Iconsax.money_tick, // Iconsax para pagado
                             ),
                             const SizedBox(height: 8),
                             _buildLoanDetailRow(
@@ -921,6 +1051,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                               currencyFormat.format(saldoActual),
                               isTotal: true,
                               isOverdue: true,
+                              icon: Iconsax.money_time, // Iconsax para saldo
                             ),
                           ],
                         ),
@@ -936,26 +1067,54 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
   }
 
   Widget _buildLoanDetailRow(String label, String value,
-      {bool isTotal = false, bool isOverdue = false}) {
+      {bool isTotal = false, bool isOverdue = false, IconData? icon}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey[600],
+        Expanded(
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 14,
+                  color: isOverdue
+                      ? Colors.orange
+                      : (isTotal
+                          ? AppTheme.colorScheme.primary
+                          : Colors.grey[600]),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight:
-                isTotal || isOverdue ? FontWeight.bold : FontWeight.normal,
-            color: isOverdue
-                ? Colors.orange
-                : (isTotal ? AppTheme.colorScheme.primary : Colors.grey[800]),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight:
+                  isTotal || isOverdue ? FontWeight.bold : FontWeight.normal,
+              color: isOverdue
+                  ? Colors.orange
+                  : (isTotal ? AppTheme.colorScheme.primary : Colors.grey[800]),
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            textAlign: TextAlign.right,
           ),
         ),
       ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:get/get.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import 'package:yatha_app/src/providers/auth_provider.dart';
 import 'package:yatha_app/src/providers/loan_provider.dart';
 import 'package:yatha_app/src/utils/theme/app_theme.dart';
@@ -119,7 +120,7 @@ class _LoansScreenState extends State<LoansScreen>
             actions: [
               IconButton(
                 icon: Icon(
-                  Icons.refresh,
+                  Iconsax.refresh, // Iconsax en lugar de Material Icons
                   color: AppTheme.colorScheme.primary,
                   size: 20,
                 ),
@@ -176,14 +177,14 @@ class _LoansScreenState extends State<LoansScreen>
               color: Colors.grey[500],
             ),
             prefixIcon: Icon(
-              Icons.search,
+              Iconsax.search_normal, // Iconsax en lugar de Material Icons
               color: Colors.grey[500],
               size: 18,
             ),
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
                     icon: Icon(
-                      Icons.clear,
+                      Iconsax.close_circle, // Iconsax en lugar de Material Icons
                       color: Colors.grey[500],
                       size: 18,
                     ),
@@ -250,7 +251,7 @@ class _LoansScreenState extends State<LoansScreen>
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.error_outline,
+                Iconsax.danger, // Iconsax en lugar de Material Icons
                 size: 40,
                 color: Colors.red[400],
               ),
@@ -285,7 +286,7 @@ class _LoansScreenState extends State<LoansScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              icon: const Icon(Icons.refresh, size: 16),
+              icon: Icon(Iconsax.refresh, size: 16), // Iconsax en lugar de Material Icons
               label: const Text(
                 'Reintentar',
                 style: TextStyle(
@@ -315,8 +316,8 @@ class _LoansScreenState extends State<LoansScreen>
               ),
               child: Icon(
                 _isSearching
-                    ? Icons.search_off
-                    : Icons.account_balance_wallet_outlined,
+                    ? Iconsax.search_status // Iconsax en lugar de Material Icons
+                    : Iconsax.wallet_minus, // Iconsax en lugar de Material Icons
                 size: 40,
                 color: Colors.grey[400],
               ),
@@ -351,7 +352,7 @@ class _LoansScreenState extends State<LoansScreen>
                   _searchLoans('');
                 },
                 icon: Icon(
-                  Icons.clear,
+                  Iconsax.close_circle, // Iconsax en lugar de Material Icons
                   size: 16,
                   color: AppTheme.colorScheme.primary,
                 ),
@@ -381,6 +382,16 @@ class _LoansScreenState extends State<LoansScreen>
 
     // Animación de entrada escalonada
     final delay = Duration(milliseconds: 50 * index);
+
+    // Iconos según el tipo de préstamo
+    IconData periodIcon = paymentPeriod == 'daily' 
+        ? Iconsax.calendar_1 // Iconsax para préstamos diarios
+        : Iconsax.calendar; // Iconsax para préstamos mensuales
+    
+    // Iconos según el estado del préstamo
+    IconData statusIcon = status == 'pending' 
+        ? Iconsax.timer // Iconsax para préstamos pendientes
+        : Iconsax.tick_circle; // Iconsax para préstamos pagados
 
     return FutureBuilder(
       future: Future.delayed(delay),
@@ -424,15 +435,10 @@ class _LoansScreenState extends State<LoansScreen>
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Center(
-                                child: Text(
-                                  clientName.isNotEmpty
-                                      ? clientName[0].toUpperCase()
-                                      : 'C',
-                                  style: TextStyle(
-                                    color: AppTheme.colorScheme.primary,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                child: Icon(
+                                  Iconsax.profile_circle, // Iconsax para perfil
+                                  color: AppTheme.colorScheme.primary,
+                                  size: 20,
                                 ),
                               ),
                             ),
@@ -474,17 +480,30 @@ class _LoansScreenState extends State<LoansScreen>
                                             width: 1,
                                           ),
                                         ),
-                                        child: Text(
-                                          paymentPeriod == 'daily'
-                                              ? 'Diario'
-                                              : 'Mensual',
-                                          style: TextStyle(
-                                            color: paymentPeriod == 'daily'
-                                                ? Colors.blue
-                                                : Colors.purple,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              periodIcon,
+                                              size: 10,
+                                              color: paymentPeriod == 'daily'
+                                                  ? Colors.blue
+                                                  : Colors.purple,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              paymentPeriod == 'daily'
+                                                  ? 'Diario'
+                                                  : 'Mensual',
+                                              style: TextStyle(
+                                                color: paymentPeriod == 'daily'
+                                                    ? Colors.blue
+                                                    : Colors.purple,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -509,15 +528,28 @@ class _LoansScreenState extends State<LoansScreen>
                                   width: 1,
                                 ),
                               ),
-                              child: Text(
-                                status == 'pending' ? 'Pendiente' : 'Pagado',
-                                style: TextStyle(
-                                  color: status == 'pending'
-                                      ? Colors.orange
-                                      : Colors.green,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    statusIcon,
+                                    size: 10,
+                                    color: status == 'pending'
+                                        ? Colors.orange
+                                        : Colors.green,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    status == 'pending' ? 'Pendiente' : 'Pagado',
+                                    style: TextStyle(
+                                      color: status == 'pending'
+                                          ? Colors.orange
+                                          : Colors.green,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -526,24 +558,41 @@ class _LoansScreenState extends State<LoansScreen>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Row(
                               children: [
-                                Text(
-                                  'Monto del préstamo',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    Iconsax.money, // Iconsax para dinero
+                                    size: 14,
+                                    color: AppTheme.colorScheme.primary,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'S/.${amount.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey[800],
-                                  ),
+                                const SizedBox(width: 8),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Monto del préstamo',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'S/.${amount.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[800],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -555,7 +604,7 @@ class _LoansScreenState extends State<LoansScreen>
                               ),
                               child: IconButton(
                                 icon: Icon(
-                                  Icons.arrow_forward_ios,
+                                  Iconsax.arrow_right_3, // Iconsax en lugar de Material Icons
                                   size: 14,
                                   color: AppTheme.colorScheme.primary,
                                 ),
@@ -602,9 +651,17 @@ class _LoansScreenState extends State<LoansScreen>
       print('Error al abrir el préstamo: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Error al abrir el préstamo: ${e.toString()}',
-            style: const TextStyle(fontSize: 14),
+          content: Row(
+            children: [
+              Icon(Iconsax.danger, color: Colors.white, size: 16), // Iconsax para error
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Error al abrir el préstamo: ${e.toString()}',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
           ),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),

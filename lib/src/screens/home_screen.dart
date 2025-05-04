@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:get/get.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import 'package:yatha_app/src/screens/gestor/new_kpi_screen.dart';
 import 'package:yatha_app/src/screens/supervisor/supervisor_kpi_screen.dart';
 import 'package:yatha_app/src/screens/supervisor/supervisor_map_screen.dart';
@@ -94,6 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.red,
           colorText: Colors.white,
           duration: const Duration(seconds: 2),
+          icon: const Icon(Iconsax.danger,
+              color: Colors.white), // Iconsax para error
         );
       }
     }
@@ -232,6 +235,34 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  IconData _getTitleIcon(bool isSupervisor) {
+    if (isSupervisor) {
+      switch (_selectedIndex) {
+        case 0:
+          return Iconsax.chart; // Iconsax para dashboard
+        case 1:
+          return Iconsax.location; // Iconsax para mapa
+        case 2:
+          return Iconsax.profile_circle; // Iconsax para perfil
+        default:
+          return Iconsax.home; // Iconsax para home por defecto
+      }
+    } else {
+      switch (_selectedIndex) {
+        case 0:
+          return Iconsax.wallet; // Iconsax para préstamos
+        case 1:
+          return Iconsax.location; // Iconsax para mapa
+        case 2:
+          return Iconsax.chart; // Iconsax para indicadores
+        case 3:
+          return Iconsax.profile_circle; // Iconsax para perfil
+        default:
+          return Iconsax.home; // Iconsax para home por defecto
+      }
+    }
+  }
+
   List<Widget> _getScreens(bool isSupervisor) {
     if (isSupervisor) {
       return const [
@@ -255,15 +286,45 @@ class _HomeScreenState extends State<HomeScreen> {
     final isSupervisor = authProvider.user?.role == 'supervisor';
 
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Iconsax.timer, // Iconsax para cargando
+                    size: 16,
+                    color: Colors.grey[700],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Cargando...',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return BaseScreen(
       title: _getTitle(isSupervisor),
+      titleIcon: _getTitleIcon(isSupervisor), // Añadimos el icono del título
       body: PageView(
         controller: _pageController!,
         onPageChanged: _handlePageChange,
