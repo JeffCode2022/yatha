@@ -494,30 +494,31 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     return GestureDetector(
       onTap: onTap,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           _buildGlassmorphicCard(
             borderRadius: 8,
             blurAmount: 5.0,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey[800],
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: color.withOpacity(0.2),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
                   color: color.withOpacity(0.3),
-                  blurRadius: 8,
+                  blurRadius: 6,
                   spreadRadius: 0,
                 ),
               ],
@@ -525,7 +526,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
             child: Icon(
               icon,
               color: color,
-              size: 24,
+              size: 20,
             ),
           ),
         ],

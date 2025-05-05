@@ -17,7 +17,7 @@ class BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Dimensiones ajustadas para evitar overflow
-    final containerHeight = 80.0; // Aumentado para dar más espacio
+    final containerHeight = 100.0; // Aumentado para dar más espacio
     final iconSize = 22.0; // Reducido ligeramente
     final fontSize = 11.0; // Reducido ligeramente
 

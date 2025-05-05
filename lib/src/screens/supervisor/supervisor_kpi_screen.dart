@@ -690,17 +690,25 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
           crossAxisSpacing: 16,
           childAspectRatio: 1.2,
           children: [
-            _buildKpiCard(
-              'Pendientes',
-              supervisorProvider.rangePendingCount.toString(),
-              Colors.orange,
-              Iconsax.timer, // Iconsax para pendientes
+            GestureDetector(
+              onTap: () =>
+                  _showClientsDialog(context, supervisorProvider, 'pending'),
+              child: _buildKpiCard(
+                'Pendientes',
+                supervisorProvider.rangePendingCount.toString(),
+                Colors.orange,
+                Iconsax.timer, // Iconsax para pendientes
+              ),
             ),
-            _buildKpiCard(
-              'Completados',
-              supervisorProvider.rangeCompletedCount.toString(),
-              Colors.green,
-              Iconsax.tick_circle, // Iconsax para completados
+            GestureDetector(
+              onTap: () =>
+                  _showClientsDialog(context, supervisorProvider, 'paid'),
+              child: _buildKpiCard(
+                'Completados',
+                supervisorProvider.rangeCompletedCount.toString(),
+                Colors.green,
+                Iconsax.tick_circle, // Iconsax para completados
+              ),
             ),
             _buildKpiCard(
               'Recaudado',
@@ -906,7 +914,6 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                     side: BorderSide(color: Colors.grey[200]!),
                   ),
                   child: ExpansionTile(
-                    
                     title: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1118,6 +1125,70 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
           ),
         ),
       ],
+    );
+  }
+
+  void _showClientsDialog(BuildContext context,
+      SupervisorProvider supervisorProvider, String status) {
+    final payments = supervisorProvider.rangeKpis['payments'] ?? [];
+    final clientes = payments
+        .where((p) =>
+            (status == 'pending' && p['payment_status'] == 'pending') ||
+            (status == 'paid' &&
+                (p['payment_status'] == 'paid' ||
+                    p['payment_status'] == 'overpaid' ||
+                    p['payment_status'] == 'partial')))
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(status == 'pending'
+              ? 'Clientes Pendientes'
+              : 'Clientes Completados'),
+          content: clientes.isEmpty
+              ? const Text('No hay clientes para mostrar.')
+              : SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: clientes.length,
+                    separatorBuilder: (_, __) => Divider(),
+                    itemBuilder: (context, index) {
+                      final cliente = clientes[index];
+                      final nombre = (cliente['partner_id'] is List &&
+                              cliente['partner_id'].length > 1)
+                          ? cliente['partner_id'][1]
+                          : (cliente['name'] ?? 'Sin nombre');
+                      final montoEsperado = cliente['payment_amount'] ?? 0.0;
+                      final montoPagado = (cliente['payment_met'] == 'mixto')
+                          ? ((cliente['paid_amount_cash'] ?? 0.0) +
+                              (cliente['paid_amount_transferencia'] ?? 0.0))
+                          : (cliente['paid_amount'] ?? 0.0);
+                      return ListTile(
+                        leading: Icon(Iconsax.user_square,
+                            color: status == 'pending'
+                                ? Colors.orange
+                                : Colors.green),
+                        title: Text(nombre),
+                        subtitle: status == 'pending'
+                            ? Text(
+                                'Monto: S/ ${montoEsperado.toStringAsFixed(2)}')
+                            : Text(
+                                'Esperado: S/ ${montoEsperado.toStringAsFixed(2)}\nPagado: S/ ${montoPagado.toStringAsFixed(2)}'),
+                      );
+                    },
+                  ),
+                ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

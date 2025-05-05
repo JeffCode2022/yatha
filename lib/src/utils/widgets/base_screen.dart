@@ -123,6 +123,13 @@ class BaseScreen extends StatelessWidget {
                     route: AppRoutes.supervisorMap,
                     isSelected: title == 'Mapa de Cobros',
                   ),
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Iconsax.profile_circle, // Iconsax para perfil
+                    title: 'Perfil',
+                    route: AppRoutes.supervisorProfile,
+                    isSelected: title == 'Perfil',
+                  ),
                 ] else ...[
                   _buildDrawerItem(
                     context: context,
@@ -138,7 +145,20 @@ class BaseScreen extends StatelessWidget {
                     route: AppRoutes.gestorMap,
                     isSelected: title == 'Mapa de Cobros',
                   ),
-                  
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Iconsax.chart, // Iconsax para indicadores
+                    title: 'Indicadores',
+                    route: AppRoutes.gestorKpis,
+                    isSelected: title == 'Indicadores',
+                  ),
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Iconsax.profile_circle, // Iconsax para perfil
+                    title: 'Mi Perfil',
+                    route: AppRoutes.gestorProfile,
+                    isSelected: title == 'Mi Perfil',
+                  ),
                 ],
                 const Divider(height: 32),
                 _buildDrawerItem(
@@ -318,27 +338,37 @@ class BaseScreen extends StatelessWidget {
               if (route == AppRoutes.gestorKpis) {
                 Get.offAll(
                   () => const HomeScreen(initialIndex: 2),
-                  transition: Transition.fade,
+                  transition: Transition.noTransition,
                 );
               } else if (route == AppRoutes.gestorLoans) {
                 Get.offAll(
                   () => const HomeScreen(initialIndex: 0),
-                  transition: Transition.fade,
+                  transition: Transition.noTransition,
                 );
               } else if (route == AppRoutes.gestorMap) {
                 Get.offAll(
                   () => const HomeScreen(initialIndex: 1),
-                  transition: Transition.fade,
+                  transition: Transition.noTransition,
+                );
+              } else if (route == AppRoutes.gestorProfile) {
+                Get.offAll(
+                  () => const HomeScreen(initialIndex: 3),
+                  transition: Transition.noTransition,
                 );
               } else if (route == AppRoutes.supervisorKpis) {
                 Get.offAll(
                   () => const HomeScreen(initialIndex: 0),
-                  transition: Transition.fade,
+                  transition: Transition.noTransition,
                 );
               } else if (route == AppRoutes.supervisorMap) {
                 Get.offAll(
                   () => const HomeScreen(initialIndex: 1),
-                  transition: Transition.fade,
+                  transition: Transition.noTransition,
+                );
+              } else if (route == AppRoutes.supervisorProfile) {
+                Get.offAll(
+                  () => const HomeScreen(initialIndex: 2),
+                  transition: Transition.noTransition,
                 );
               } else {
                 Get.offAllNamed(route);

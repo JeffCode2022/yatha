@@ -153,11 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       _selectedIndex = index;
-      _pageController!.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      _pageController!.jumpToPage(index);
     });
 
     if (index == 0) {
@@ -211,9 +207,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (isSupervisor) {
       switch (_selectedIndex) {
         case 0:
-          return 'Dashboard';
+          return 'KPIs de Gestores';
         case 1:
-          return 'Mapa';
+          return 'Mapa de Cobros';
         case 2:
           return 'Perfil';
         default:
@@ -328,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: PageView(
         controller: _pageController!,
         onPageChanged: _handlePageChange,
-        physics: const ClampingScrollPhysics(),
+        physics: const NeverScrollableScrollPhysics(),
         children: _getScreens(isSupervisor),
       ),
       bottomNavigationBar: BottomNavBar(
