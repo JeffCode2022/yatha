@@ -15,6 +15,24 @@ class Loan {
   final List<Installment> installments;
   final String? clientPhone;
   final String? clientAddress;
+  final String? due_date;
+  final int? days_overdue;
+  final List<dynamic>? create_uid;
+  final List<dynamic>? write_uid;
+  final bool? prestamo_anterior;
+  final String? payment_frequency;
+  final String? start_date;
+  final String? first_payment_date;
+  final String? create_date;
+  final String? write_date;
+  final double? total_interest_paid;
+  final double? interest_rate;
+  final double? real_interest_rate;
+  final double? profit;
+  final double? current_due;
+  final double? payment_amount;
+  final double? total_cash_payments;
+  final double? total_transfer_payments;
 
   Loan({
     required this.id,
@@ -32,6 +50,24 @@ class Loan {
     required this.installments,
     this.clientPhone,
     this.clientAddress,
+    this.due_date,
+    this.days_overdue,
+    this.create_uid,
+    this.write_uid,
+    this.prestamo_anterior,
+    this.payment_frequency,
+    this.start_date,
+    this.first_payment_date,
+    this.create_date,
+    this.write_date,
+    this.total_interest_paid,
+    this.interest_rate,
+    this.real_interest_rate,
+    this.profit,
+    this.current_due,
+    this.payment_amount,
+    this.total_cash_payments,
+    this.total_transfer_payments,
   });
 
   /// Crea una instancia de Loan desde un mapa JSON
@@ -91,6 +127,28 @@ class Loan {
         installments: installments,
         clientPhone: _sanitizeString(json['partner_phone']),
         clientAddress: _sanitizeString(json['partner_address']),
+        due_date: json['due_date']?.toString(),
+        days_overdue: json['days_overdue'] as int?,
+        create_uid: json['create_uid'] as List<dynamic>?,
+        write_uid: json['write_uid'] as List<dynamic>?,
+        prestamo_anterior: json['prestamo_anterior'] as bool?,
+        payment_frequency: json['payment_frequency']?.toString(),
+        start_date: json['start_date']?.toString(),
+        first_payment_date: json['first_payment_date']?.toString(),
+        create_date: json['create_date']?.toString(),
+        write_date: json['write_date']?.toString(),
+        total_interest_paid:
+            _parseDouble(json['total_interest_paid'], 'total_interest_paid'),
+        interest_rate: _parseDouble(json['interest_rate'], 'interest_rate'),
+        real_interest_rate:
+            _parseDouble(json['real_interest_rate'], 'real_interest_rate'),
+        profit: _parseDouble(json['profit'], 'profit'),
+        current_due: _parseDouble(json['current_due'], 'current_due'),
+        payment_amount: _parseDouble(json['payment_amount'], 'payment_amount'),
+        total_cash_payments:
+            _parseDouble(json['total_cash_payments'], 'total_cash_payments'),
+        total_transfer_payments: _parseDouble(
+            json['total_transfer_payments'], 'total_transfer_payments'),
       );
     } catch (e) {
       print('Error al crear Loan desde JSON: $e');
@@ -130,6 +188,24 @@ class Loan {
       'loan_status': status,
       'partner_phone': clientPhone,
       'partner_address': clientAddress,
+      'due_date': due_date,
+      'days_overdue': days_overdue,
+      'create_uid': create_uid,
+      'write_uid': write_uid,
+      'prestamo_anterior': prestamo_anterior,
+      'payment_frequency': payment_frequency,
+      'start_date': start_date,
+      'first_payment_date': first_payment_date,
+      'create_date': create_date,
+      'write_date': write_date,
+      'total_interest_paid': total_interest_paid,
+      'interest_rate': interest_rate,
+      'real_interest_rate': real_interest_rate,
+      'profit': profit,
+      'current_due': current_due,
+      'payment_amount': payment_amount,
+      'total_cash_payments': total_cash_payments,
+      'total_transfer_payments': total_transfer_payments,
     };
   }
 

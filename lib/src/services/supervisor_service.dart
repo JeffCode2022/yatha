@@ -86,6 +86,7 @@ class SupervisorService extends BaseService {
             [
               ["loan_id", "!=", false],
               ["loan_id.partner_salesperson", "=", int.parse(gestorId)],
+              ["loan_id.loan_status", "=", "pending"],
               [
                 "payment_date",
                 ">=",
@@ -124,8 +125,34 @@ class SupervisorService extends BaseService {
         };
       }
 
-      // Procesar los pagos y calcular métricas
+      // Obtener los IDs de los préstamos
       final List<dynamic> payments = response['result'];
+      final List<dynamic> loanIds = payments
+          .where((payment) => payment['loan_id'] != null)
+          .map((payment) => payment['loan_id'][0])
+          .toList();
+
+      // Obtener los detalles de los préstamos incluyendo due_date
+      final loansResponse = await getLoansByIds(loanIds);
+      final Map<int, dynamic> loansMap = {};
+      if (loansResponse['result'] != null) {
+        for (var loan in loansResponse['result']) {
+          loansMap[loan['id']] = loan;
+        }
+      }
+
+      // Combinar la información de pagos con los detalles de préstamos
+      for (var payment in payments) {
+        if (payment['loan_id'] != null) {
+          final loanId = payment['loan_id'][0];
+          final loanDetails = loansMap[loanId];
+          if (loanDetails != null) {
+            payment['due_date'] = loanDetails['due_date'];
+          }
+        }
+      }
+
+      // Procesar los pagos y calcular métricas
       int pendingCount = 0;
       int completedCount = 0;
       int lateCount = 0;
@@ -400,6 +427,9 @@ class SupervisorService extends BaseService {
       final password = prefs.getString('password') ?? '';
       final database = prefs.getString('database') ?? 'prestamovf';
 
+      final formattedStartDate = DateFormat('yyyy-MM-dd').format(startDate);
+      final formattedEndDate = DateFormat('yyyy-MM-dd').format(endDate);
+
       final response = await post('/jsonrpc', body: {
         "jsonrpc": "2.0",
         "method": "call",
@@ -413,21 +443,21 @@ class SupervisorService extends BaseService {
             "loan.management",
             "search_read",
             [
-              ["partner_salesperson", "=", int.parse(gestorId)],
-              ["loan_status", "!=", "cancelled"],
-              ["create_date", ">=", DateFormat('yyyy-MM-dd').format(startDate)],
-              ["create_date", "<=", DateFormat('yyyy-MM-dd').format(endDate)]
+              ["create_date", ">=", formattedStartDate],
+              ["create_date", "<=", formattedEndDate],
+              ["partner_salesperson.id", "=", int.parse(gestorId)],
+              ["loan_status", "=", "pending"]
             ],
             [
               "id",
               "name",
+              "partner_id",
               "loan_amount",
               "profit",
               "total_amount",
-              "loan_status",
-              "partner_id",
-              "partner_salesperson",
-              "create_date"
+              "current_due",
+              "create_date",
+              "partner_salesperson"
             ]
           ]
         }
@@ -530,6 +560,52 @@ class SupervisorService extends BaseService {
     } catch (e) {
       print('Error en getMapLocations: $e');
       throw Exception('Error al obtener las ubicaciones para el mapa: $e');
+    }
+  }
+
+  // Método para obtener préstamos por sus IDs
+  Future<Map<String, dynamic>> getLoansByIds(List<dynamic> loanIds) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = prefs.getInt('uid') ?? 0;
+      final password = prefs.getString('password') ?? '';
+      final database = prefs.getString('database') ?? 'prestamovf';
+
+      final response = await post('/jsonrpc', body: {
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": {
+          "service": "object",
+          "method": "execute",
+          "args": [
+            database,
+            uid,
+            password,
+            "loan.management",
+            "search_read",
+            [
+              ["id", "in", loanIds]
+            ],
+            [
+              "id",
+              "name",
+              "partner_id",
+              "loan_amount",
+              "profit",
+              "total_amount",
+              "current_due",
+              "create_date",
+              "partner_salesperson",
+              "due_date"
+            ]
+          ]
+        }
+      });
+
+      return response;
+    } catch (e) {
+      print('Error en getLoansByIds: $e');
+      rethrow;
     }
   }
 }

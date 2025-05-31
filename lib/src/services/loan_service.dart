@@ -80,7 +80,24 @@ class LoanService extends BaseService {
       "payment_parts",
       "amount_due_today",
       "total_amount",
-      "current_due"
+      "due_date",
+      "days_overdue",
+      "create_uid",
+      "write_uid",
+      "prestamo_anterior",
+      "payment_frequency",
+      "start_date",
+      "first_payment_date",
+      "create_date",
+      "write_date",
+      "total_interest_paid",
+      "interest_rate",
+      "real_interest_rate",
+      "profit",
+      "current_due",
+      "payment_amount",
+      "total_cash_payments",
+      "total_transfer_payments",
     ];
   }
 }

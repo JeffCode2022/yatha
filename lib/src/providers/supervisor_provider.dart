@@ -347,38 +347,30 @@ class SupervisorProvider with ChangeNotifier {
 
           // La eficiencia se calcula como: monto desembolsado / (monto esperado + 20%)
           final double targetAmount = _expectedAmount * 1.2;
-          _efficiencyPercentage = targetAmount > 0
-              ? (_totalDisbursed / targetAmount).clamp(0.0, 1.0)
-              : 0.0;
-
-          print('Totales calculados para el gestor ${_selectedGestor!.name}:');
-          print('- Total préstamos: ${_dailyLoans.length}');
-          print('- Total desembolsado: $_totalDisbursed');
-          print('- Total interés: $_totalInterest');
-          print('- Total a cobrar: $_totalToCollect');
-          print('- Monto esperado: $_expectedAmount');
-          print('- Monto objetivo (120%): $targetAmount');
-          print('- Eficiencia actual: ${_efficiencyPercentage * 100}%');
-        } else {
-          _resetTotals();
+          _efficiencyPercentage = _totalDisbursed / targetAmount;
         }
-      } else {
-        _dailyLoans = [];
-        _resetTotals();
-        print(
-            'No se encontraron préstamos para el gestor ${_selectedGestor!.name}');
       }
-
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
-      print(
-          'Error al cargar préstamos del gestor ${_selectedGestor!.name}: $e');
-      _isLoading = false;
-      _errorMessage = e.toString();
+      _errorMessage = 'Error al cargar préstamos: $e';
       _dailyLoans = [];
-      _resetTotals();
+    } finally {
+      _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // Método para obtener préstamos por sus IDs
+  Future<List<Map<String, dynamic>>> getLoansByIds(
+      List<dynamic> loanIds) async {
+    try {
+      final response = await _service.getLoansByIds(loanIds);
+      if (response != null && response['result'] != null) {
+        return List<Map<String, dynamic>>.from(response['result']);
+      }
+      return [];
+    } catch (e) {
+      print('Error al obtener préstamos por IDs: $e');
+      return [];
     }
   }
 

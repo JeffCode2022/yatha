@@ -43,7 +43,12 @@ class LoanProvider with ChangeNotifier {
         _loans = [];
       } else if (response.containsKey('success') && response['success']) {
         final loansList = response['loans'] ?? [];
-        _loans = loansList.map<Loan>((loan) => Loan.fromJson(loan)).toList();
+        _loans = loansList.map<Loan>((loan) {
+          final loanObject = Loan.fromJson(loan);
+          print(
+              'Loan object after fromJson in fetchLoans: ${loanObject.toJson()}'); // Debug print
+          return loanObject;
+        }).toList();
         _updateLoanStats();
         _errorMessage = null;
       } else {
@@ -111,6 +116,8 @@ class LoanProvider with ChangeNotifier {
   // Función para seleccionar un préstamo
   void selectLoan(Loan loan) {
     _selectedLoan = loan;
+    print(
+        'Loan seleccionado completo: ${_selectedLoan?.toJson()}'); // General debug print
     notifyListeners();
   }
 
@@ -128,12 +135,20 @@ class LoanProvider with ChangeNotifier {
         _errorMessage = response['error'];
         _loanPayments = [];
       } else {
+        final loansList = response['loans'] ?? [];
+        _loans = loansList.map<Loan>((loan) {
+          final loanObject = Loan.fromJson(loan);
+          print(
+              'Loan object after fromJson: ${loanObject.toJson()}'); // Debug print
+          return loanObject;
+        }).toList();
         _loanPayments = response['result'] ?? [];
         // Ordenar los pagos por fecha
         _loanPayments.sort((a, b) =>
             a['payment_date'] != null && b['payment_date'] != null
                 ? a['payment_date'].compareTo(b['payment_date'])
                 : 0);
+        _updateLoanStats();
         _errorMessage = null;
       }
     } catch (e) {

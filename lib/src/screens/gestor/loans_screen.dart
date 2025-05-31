@@ -109,13 +109,34 @@ class _LoansScreenState extends State<LoansScreen>
           appBar: AppBar(
             backgroundColor: Colors.white,
             elevation: 0,
-            title: Text(
-              'Préstamos',
-              style: TextStyle(
-                color: AppTheme.colorScheme.primary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            title: Row(
+              children: [
+                Text(
+                  'Préstamos',
+                  style: TextStyle(
+                    color: AppTheme.colorScheme.primary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${clienteProvider.loans.length}',
+                    style: TextStyle(
+                      color: AppTheme.colorScheme.primary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
             actions: [
               IconButton(
@@ -184,7 +205,8 @@ class _LoansScreenState extends State<LoansScreen>
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
                     icon: Icon(
-                      Iconsax.close_circle, // Iconsax en lugar de Material Icons
+                      Iconsax
+                          .close_circle, // Iconsax en lugar de Material Icons
                       color: Colors.grey[500],
                       size: 18,
                     ),
@@ -286,7 +308,8 @@ class _LoansScreenState extends State<LoansScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              icon: Icon(Iconsax.refresh, size: 16), // Iconsax en lugar de Material Icons
+              icon: Icon(Iconsax.refresh,
+                  size: 16), // Iconsax en lugar de Material Icons
               label: const Text(
                 'Reintentar',
                 style: TextStyle(
@@ -316,8 +339,10 @@ class _LoansScreenState extends State<LoansScreen>
               ),
               child: Icon(
                 _isSearching
-                    ? Iconsax.search_status // Iconsax en lugar de Material Icons
-                    : Iconsax.wallet_minus, // Iconsax en lugar de Material Icons
+                    ? Iconsax
+                        .search_status // Iconsax en lugar de Material Icons
+                    : Iconsax
+                        .wallet_minus, // Iconsax en lugar de Material Icons
                 size: 40,
                 color: Colors.grey[400],
               ),
@@ -384,12 +409,12 @@ class _LoansScreenState extends State<LoansScreen>
     final delay = Duration(milliseconds: 50 * index);
 
     // Iconos según el tipo de préstamo
-    IconData periodIcon = paymentPeriod == 'daily' 
+    IconData periodIcon = paymentPeriod == 'daily'
         ? Iconsax.calendar_1 // Iconsax para préstamos diarios
         : Iconsax.calendar; // Iconsax para préstamos mensuales
-    
+
     // Iconos según el estado del préstamo
-    IconData statusIcon = status == 'pending' 
+    IconData statusIcon = status == 'pending'
         ? Iconsax.timer // Iconsax para préstamos pendientes
         : Iconsax.tick_circle; // Iconsax para préstamos pagados
 
@@ -540,7 +565,9 @@ class _LoansScreenState extends State<LoansScreen>
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    status == 'pending' ? 'Pendiente' : 'Pagado',
+                                    status == 'pending'
+                                        ? 'Pendiente'
+                                        : 'Pagado',
                                     style: TextStyle(
                                       color: status == 'pending'
                                           ? Colors.orange
@@ -563,7 +590,8 @@ class _LoansScreenState extends State<LoansScreen>
                                 Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.colorScheme.primary.withOpacity(0.1),
+                                    color: AppTheme.colorScheme.primary
+                                        .withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Icon(
@@ -604,7 +632,8 @@ class _LoansScreenState extends State<LoansScreen>
                               ),
                               child: IconButton(
                                 icon: Icon(
-                                  Iconsax.arrow_right_3, // Iconsax en lugar de Material Icons
+                                  Iconsax
+                                      .arrow_right_3, // Iconsax en lugar de Material Icons
                                   size: 14,
                                   color: AppTheme.colorScheme.primary,
                                 ),
@@ -653,7 +682,8 @@ class _LoansScreenState extends State<LoansScreen>
         SnackBar(
           content: Row(
             children: [
-              Icon(Iconsax.danger, color: Colors.white, size: 16), // Iconsax para error
+              Icon(Iconsax.danger,
+                  color: Colors.white, size: 16), // Iconsax para error
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

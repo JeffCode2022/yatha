@@ -216,7 +216,7 @@ class ClienteService extends BaseService {
             'partner_longitude': loan['partner_longitude'] ?? 0.0,
             'loan_status': loan['loan_status'] ?? 'pending',
             'total_amount': loan['total_amount'] ?? 0.0,
-            'current_due': loan['current_due'] ?? 0.0,
+            'due_date': loan['due_date'],
           };
         }).toList();
       }
@@ -265,7 +265,7 @@ class ClienteService extends BaseService {
       'partner_longitude',
       'loan_status',
       'total_amount',
-      'current_due'
+      'due_date',
     ];
   }
 }

@@ -147,8 +147,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                 // Información del préstamo
                 _buildLoanHeader(clientName, loanName),
 
-                _buildLoanInfoCard(
-                    amount, loanProvider.loanPayments, paymentPeriod),
+                _buildLoanInfoCard(loanProvider, amount,
+                    loanProvider.loanPayments, paymentPeriod),
 
                 // Título de sección de cuotas
                 _buildInstallmentsHeader(loanProvider.loanPayments.length),
@@ -244,8 +244,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
     );
   }
 
-  Widget _buildLoanInfoCard(
-      double amount, List<dynamic> payments, String paymentPeriod) {
+  Widget _buildLoanInfoCard(LoanProvider loanProvider, double amount,
+      List<dynamic> payments, String paymentPeriod) {
     print('\n=== Información del préstamo ===');
     print('Monto total del préstamo: $amount');
 
@@ -356,6 +356,20 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                   ),
                 ),
               ],
+            ),
+          ),
+
+          Divider(height: 1, color: Colors.grey[200]),
+
+          // Fecha de Vencimiento
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildInfoItem(
+              'Fecha de Vencimiento',
+              loanProvider.selectedLoan?.due_date ??
+                  'No disponible', // Access due_date here
+              Colors.orange, // You can choose a color
+              Iconsax.calendar_add, // Choose an appropriate icon
             ),
           ),
 
@@ -1150,15 +1164,9 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
           paidAmount = ((payment['paid_amount'] ?? 0.0) * 100).round() / 100;
         }
 
-     
-
         total = ((total + paidAmount) * 100).round() / 100;
-        
-      } else {
-     
-      }
+      } else {}
     }
-
 
     return total;
   }

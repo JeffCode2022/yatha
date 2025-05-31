@@ -215,111 +215,8 @@ class ApiService extends BaseService {
       "partner_longitude",
       "amount_due_today",
       "total_cash_payments",
-      "total_transfer_payments",
-      "current_due"
+      "total_transfer_payments"
     ];
-  }
-
-  // Función para obtener los préstamos asignados a un gestor
-  Future<Map<String, dynamic>> getAssignedLoansOld(
-    int uid,
-    String paymentPeriod,
-  ) async {
-    final url = Uri.parse('$baseUrl/jsonrpc');
-
-    final headers = {'Content-Type': 'application/json'};
-
-    // Estructura exacta como en Postman para préstamos mensuales/diarios
-    final body = jsonEncode({
-      "jsonrpc": "2.0",
-      "method": "call",
-      "params": {
-        "service": "object",
-        "method": "execute",
-        "args": [
-          "prestamovf",
-          uid,
-          "1234",
-          "loan.management",
-          "search_read",
-          [
-            ["payment_period", "=", paymentPeriod],
-            ["loan_status", "=", "pending"],
-            ["partner_salesperson.id", "=", uid]
-          ],
-          [
-            "id",
-            "partner_id",
-            "partner_salesperson",
-            "payment_parts",
-            "days_overdue",
-            "create_uid",
-            "write_uid",
-            "name",
-            "prestamo_anterior",
-            "payment_period",
-            "loan_status",
-            "payment_frequency",
-            "start_date",
-            "first_payment_date",
-            "due_date",
-            "partner_latitude",
-            "partner_longitude",
-            "create_date",
-            "write_date",
-            "total_interest_paid",
-            "loan_amount",
-            "interest_rate",
-            "real_interest_rate",
-            "total_amount",
-            "profit",
-            "current_due",
-            "payment_amount",
-            "amount_due_today",
-            "total_cash_payments",
-            "total_transfer_payments"
-          ]
-        ]
-      }
-    });
-
-    try {
-      print('URL: $url'); // Debug
-      print('Headers: $headers'); // Debug
-      print('Body: $body'); // Debug
-
-      final response = await http.post(url, headers: headers, body: body);
-      print('Status code: ${response.statusCode}'); // Debug
-      print('Response body: ${response.body}'); // Debug
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        if (data['error'] != null) {
-          print('Error en la respuesta: ${data['error']}');
-          return {
-            'error': data['error']['message'] ?? 'Error al obtener préstamos',
-          };
-        }
-
-        // Asegurarnos de que result sea una lista
-        if (data['result'] == null) {
-          print('No hay préstamos en la respuesta');
-          return {'result': []};
-        }
-
-        print('Préstamos obtenidos: ${data['result'].length}');
-        return data;
-      } else {
-        print('Error de conexión: ${response.statusCode}');
-        return {
-          'error': 'Error en la conexión, código: ${response.statusCode}',
-        };
-      }
-    } catch (e) {
-      print('Error al obtener préstamos: $e'); // Debug
-      return {'error': 'Error de conexión: $e'};
-    }
   }
 
   // Función para buscar préstamos por nombre de cliente
@@ -423,7 +320,6 @@ class ApiService extends BaseService {
               "loan_amount",
               "total_amount",
               "paid_amount_total",
-              "current_due",
               "payment_amount",
               "paid_amount",
               "paid_amount_cash",

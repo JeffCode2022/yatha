@@ -8,6 +8,7 @@ import '../../models/gestor.dart';
 import 'package:intl/intl.dart';
 import '../../utils/theme/app_theme.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'dart:ui';
 
 class SupervisorKpiScreen extends StatefulWidget {
   const SupervisorKpiScreen({Key? key}) : super(key: key);
@@ -752,7 +753,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     final payments = supervisorProvider.rangeKpis['payments'] ?? [];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -760,7 +761,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
+            blurRadius: 10,
             spreadRadius: 0,
             offset: const Offset(0, 2),
           ),
@@ -905,162 +906,216 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                 final loanId = loan['id'];
                 final totalPagado =
                     _calcularTotalPagadoPorPrestamo(loanId, payments);
-                final saldoActual = (loan['total_amount'] ?? 0.0) - totalPagado;
+                final saldoActual = loan['current_due'] ?? 0.0;
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
+                  margin: const EdgeInsets.only(bottom: 12),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     side: BorderSide(color: Colors.grey[200]!),
                   ),
-                  child: ExpansionTile(
-                    title: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            AutoSizeText(
-                              loan['name'] ?? 'Sin código',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                                color: Colors.black87,
-                              ),
-                              maxLines: 1,
-                              minFontSize: 10,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            AutoSizeText(
-                              currencyFormat.format(loan['loan_amount'] ?? 0),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                                color: Colors.black87,
-                              ),
-                              maxLines: 1,
-                              minFontSize: 10,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Iconsax.profile_circle, // Iconsax para cliente
-                              size: 12,
-                              color: Colors.grey[600],
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              loan['partner_id'] != null
-                                  ? loan['partner_id'][1]
-                                  : 'Cliente sin nombre',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Iconsax.calendar, // Iconsax para fecha
-                                  size: 12,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  loan['create_date'] != null
-                                      ? 'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(loan['create_date']))}'
-                                      : 'Fecha: No disponible',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[50],
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.orange[300]!,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Iconsax.timer, // Iconsax para estado pendiente
-                            size: 12,
-                            color: Colors.orange[700],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            loan['state'] ?? 'Pendiente',
-                            style: TextStyle(
-                              color: Colors.orange[700],
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: Stack(
                     children: [
                       Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
+                        padding: const EdgeInsets.only(
+                            top: 8, right: 8, left: 8, bottom: 8),
+                        child: ExpansionTile(
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  AutoSizeText(
+                                    loan['name'] ?? 'Sin código',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      color: Colors.black87,
+                                    ),
+                                    maxLines: 1,
+                                    minFontSize: 10,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  AutoSizeText(
+                                    currencyFormat
+                                        .format(loan['loan_amount'] ?? 0),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      color: Colors.black87,
+                                    ),
+                                    maxLines: 1,
+                                    minFontSize: 10,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Iconsax
+                                        .profile_circle, // Iconsax para cliente
+                                    size: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      loan['partner_id'] != null
+                                          ? loan['partner_id'][1]
+                                          : 'Cliente sin nombre',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Iconsax.calendar, // Iconsax para fecha
+                                        size: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        loan['create_date'] != null
+                                            ? 'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(loan['create_date']))}'
+                                            : 'Fecha: No disponible',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                           children: [
-                            _buildLoanDetailRow(
-                              'Monto del Préstamo',
-                              currencyFormat.format(loan['loan_amount'] ?? 0),
-                              icon: Iconsax.money, // Iconsax para monto
-                            ),
-                            const SizedBox(height: 4),
-                            _buildLoanDetailRow(
-                              'Interés',
-                              currencyFormat.format(loan['profit'] ?? 0),
-                              icon:
-                                  Iconsax.money_recive, // Iconsax para interés
-                            ),
-                            const SizedBox(height: 8),
-                            _buildLoanDetailRow(
-                              'Total a Pagar',
-                              currencyFormat.format(loan['total_amount'] ?? 0),
-                              isTotal: true,
-                              icon: Iconsax.money_add, // Iconsax para total
-                            ),
-                            const SizedBox(height: 8),
-                            _buildLoanDetailRow(
-                              'Total Pagado',
-                              currencyFormat.format(totalPagado),
-                              icon: Iconsax.money_tick, // Iconsax para pagado
-                            ),
-                            const SizedBox(height: 8),
-                            _buildLoanDetailRow(
-                              'Saldo actual',
-                              currencyFormat.format(saldoActual),
-                              isTotal: true,
-                              isOverdue: true,
-                              icon: Iconsax.money_time, // Iconsax para saldo
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  _buildLoanDetailRow(
+                                    'Monto del Préstamo',
+                                    currencyFormat
+                                        .format(loan['loan_amount'] ?? 0),
+                                    icon: Iconsax.money, // Iconsax para monto
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _buildLoanDetailRow(
+                                    'Interés',
+                                    currencyFormat.format(loan['profit'] ?? 0),
+                                    icon: Iconsax
+                                        .money_recive, // Iconsax para interés
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildLoanDetailRow(
+                                    'Total a Pagar',
+                                    currencyFormat
+                                        .format(loan['total_amount'] ?? 0),
+                                    isTotal: true,
+                                    icon:
+                                        Iconsax.money_add, // Iconsax para total
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildLoanDetailRow(
+                                    'Total Pagado',
+                                    currencyFormat.format(
+                                        (loan['total_amount'] ?? 0) -
+                                            (loan['current_due'] ?? 0)),
+                                    icon: Iconsax
+                                        .money_tick, // Iconsax para pagado
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildLoanDetailRow(
+                                    'Saldo actual',
+                                    currencyFormat.format(saldoActual),
+                                    isTotal: true,
+                                    isOverdue: true,
+                                    icon: Iconsax
+                                        .money_time, // Iconsax para saldo
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
+                        ),
+                      ),
+                      // Badge glassmorphic encima de todo
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                            child: Builder(
+                              builder: (context) {
+                                final status = loan['loan_status'] ?? 'pending';
+                                final color = getLoanStatusColor(status);
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                        color: color.withOpacity(0.7),
+                                        width: 1),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: color.withOpacity(0.10),
+                                        blurRadius: 4,
+                                        spreadRadius: 0,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        getLoanStatusIcon(status),
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        getLoanStatusLabel(status),
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                          letterSpacing: 0.1,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -1129,7 +1184,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
   }
 
   void _showClientsDialog(BuildContext context,
-      SupervisorProvider supervisorProvider, String status) {
+      SupervisorProvider supervisorProvider, String status) async {
     final payments = supervisorProvider.rangeKpis['payments'] ?? [];
     final clientes = payments
         .where((p) =>
@@ -1139,6 +1194,15 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                     p['payment_status'] == 'overpaid' ||
                     p['payment_status'] == 'partial')))
         .toList();
+
+    // Obtener los IDs de los préstamos únicos
+    final loanIds = clientes
+        .map((c) => c['loan_id'] is List ? c['loan_id'][0] : c['loan_id'])
+        .toSet()
+        .toList();
+
+    // Obtener los préstamos completos
+    final loans = await supervisorProvider.getLoansByIds(loanIds);
 
     showDialog(
       context: context,
@@ -1166,17 +1230,53 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                           ? ((cliente['paid_amount_cash'] ?? 0.0) +
                               (cliente['paid_amount_transferencia'] ?? 0.0))
                           : (cliente['paid_amount'] ?? 0.0);
+
+                      // Obtener el préstamo completo para acceder al current_due y due_date
+                      final loanId = cliente['loan_id'] is List
+                          ? cliente['loan_id'][0]
+                          : cliente['loan_id'];
+                      final prestamo = loans.firstWhere(
+                        (loan) => loan['id'] == loanId,
+                        orElse: () => {'current_due': 0.0, 'due_date': null},
+                      );
+                      final saldoActual = prestamo['current_due'] ?? 0.0;
+                      final fechaVencimiento = prestamo['due_date'] != null
+                          ? DateFormat('dd/MM/yyyy')
+                              .format(DateTime.parse(prestamo['due_date']))
+                          : 'No disponible';
+
                       return ListTile(
                         leading: Icon(Iconsax.user_square,
                             color: status == 'pending'
                                 ? Colors.orange
                                 : Colors.green),
                         title: Text(nombre),
-                        subtitle: status == 'pending'
-                            ? Text(
-                                'Monto: S/ ${montoEsperado.toStringAsFixed(2)}')
-                            : Text(
-                                'Esperado: S/ ${montoEsperado.toStringAsFixed(2)}\nPagado: S/ ${montoPagado.toStringAsFixed(2)}'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                'Monto: S/ ${montoEsperado.toStringAsFixed(2)}'),
+                            if (status == 'paid')
+                              Text(
+                                  'Pagado: S/ ${montoPagado.toStringAsFixed(2)}'),
+                            Text(
+                              'Saldo actual: S/ ${saldoActual.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: saldoActual > 0
+                                    ? Colors.orange
+                                    : Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'F. Venc.: $fechaVencimiento',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -1190,5 +1290,51 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
         );
       },
     );
+  }
+
+  // Funciones auxiliares para el badge de estado del préstamo
+  String getLoanStatusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pendiente';
+      case 'renewed':
+        return 'Renovado';
+      case 'refinanced':
+        return 'Refinanciado';
+      case 'paid':
+        return 'Pagado';
+      default:
+        return 'Desconocido';
+    }
+  }
+
+  Color getLoanStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return Colors.orange;
+      case 'renewed':
+        return Colors.blue;
+      case 'refinanced':
+        return Colors.purple;
+      case 'paid':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData getLoanStatusIcon(String status) {
+    switch (status) {
+      case 'pending':
+        return Iconsax.timer;
+      case 'renewed':
+        return Iconsax.repeat;
+      case 'refinanced':
+        return Iconsax.refresh_square_2;
+      case 'paid':
+        return Iconsax.tick_circle;
+      default:
+        return Iconsax.info_circle;
+    }
   }
 }

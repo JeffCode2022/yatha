@@ -316,7 +316,6 @@ class KpiService extends BaseService {
       final status = payment['payment_status'] as String;
       final paymentAmount = (payment['payment_amount'] ?? 0.0).toDouble();
       final paidAmount = (payment['paid_amount'] ?? 0.0).toDouble();
-      final currentDue = (payment['current_due'] ?? 0.0).toDouble();
 
       if (status == 'pending') {
         stats['pending'] = (stats['pending'] as int) + 1;
@@ -327,7 +326,8 @@ class KpiService extends BaseService {
       stats['total_expected'] =
           (stats['total_expected'] as double) + paymentAmount;
       stats['total_paid'] = (stats['total_paid'] as double) + paidAmount;
-      stats['total_due'] = (stats['total_due'] as double) + currentDue;
+      stats['total_due'] =
+          (stats['total_expected'] as double) - (stats['total_paid'] as double);
     }
 
     return stats;
@@ -420,8 +420,7 @@ class KpiService extends BaseService {
       "payment_period",
       "payment_parts",
       "amount_due_today",
-      "total_amount",
-      "current_due"
+      "total_amount"
     ];
   }
 
