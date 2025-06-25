@@ -86,7 +86,6 @@ class SupervisorService extends BaseService {
             [
               ["loan_id", "!=", false],
               ["loan_id.partner_salesperson", "=", int.parse(gestorId)],
-              ["loan_id.loan_status", "=", "pending"],
               [
                 "payment_date",
                 ">=",
@@ -156,65 +155,64 @@ class SupervisorService extends BaseService {
       int pendingCount = 0;
       int completedCount = 0;
       int lateCount = 0;
-      double totalAmount = 0.0;
-      double collectedAmount = 0.0;
+      double totalDue = 0.0; // meta
+      double totalCollected = 0.0; // recaudado
+      List<dynamic> filteredPayments = [];
 
       for (var payment in payments) {
+        // Filtrar préstamos renovados, refinanciados o cancelados
+        String loanStatus = '';
+        if (payment['loan_id'] != null &&
+            payment['loan_id'] is List &&
+            payment['loan_id'].length > 2) {
+          loanStatus = payment['loan_id'][2]?.toString() ?? '';
+        } else if (payment['loan_status'] != null) {
+          loanStatus = payment['loan_status'].toString();
+        }
+        if (loanStatus == 'refinanced' ||
+            loanStatus == 'renewed' ||
+            loanStatus == 'cancelled') {
+          continue;
+        }
+        filteredPayments.add(payment);
         final status = payment['payment_status']?.toString() ?? 'pending';
         final expectedAmount = (payment['payment_amount'] ?? 0.0).toDouble();
         double paidAmount = 0.0;
-
-        // Calcular el monto pagado considerando pagos mixtos
         if (payment['payment_met'] == 'mixto') {
           double cashAmount = (payment['paid_amount_cash'] ?? 0.0).toDouble();
           double transferAmount =
               (payment['paid_amount_transferencia'] ?? 0.0).toDouble();
           paidAmount = cashAmount + transferAmount;
-
-          // Validar que la suma de los pagos mixtos no exceda significativamente el monto esperado
-          if (paidAmount > expectedAmount * 1.5) {
-            // 50% de tolerancia
-            Logger.warning(
-                'Pago mixto excede significativamente el monto esperado: $paidAmount > $expectedAmount');
-          }
         } else {
           paidAmount = (payment['paid_amount'] ?? 0.0).toDouble();
         }
-
-        final timeStatus = _calculatePaymentTimeStatus(
-            payment['payment_date']?.toString() ?? '',
-            payment['actual_payment_date']?.toString(),
-            status);
-
         if (status == 'pending') {
           pendingCount++;
+          final timeStatus = _calculatePaymentTimeStatus(
+              payment['payment_date']?.toString() ?? '',
+              payment['actual_payment_date']?.toString(),
+              status);
           if (timeStatus == 'late') {
             lateCount++;
           }
         } else if (status == 'paid' ||
             status == 'partial' ||
             status == 'overpaid') {
-          if (status == 'paid' || status == 'overpaid' || status == 'partial') {
-            completedCount++;
-          }
-          collectedAmount += paidAmount;
+          completedCount++;
+          totalCollected += paidAmount;
         }
-
-        totalAmount += expectedAmount;
+        totalDue += expectedAmount;
       }
-
-      // Calcular eficiencia de desembolso
-      double efficiency =
-          payments.isEmpty ? 0.0 : completedCount / payments.length;
-
+      // Calcular eficiencia igual que gestor
+      double efficiency = totalDue > 0 ? (totalCollected / totalDue) : 0.0;
       return {
         'pending_count': pendingCount,
         'completed_count': completedCount,
         'late_count': lateCount,
-        'total_amount': totalAmount,
-        'collected_amount': collectedAmount,
+        'total_amount': totalDue,
+        'collected_amount': totalCollected,
         'efficiency': efficiency,
-        'payments': payments
+        'payments': filteredPayments
       };
     } catch (e) {
       print('Error en getGestorKPIs: $e');

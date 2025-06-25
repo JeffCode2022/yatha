@@ -190,6 +190,7 @@ class ClienteService extends BaseService {
   Future<List<Map<String, dynamic>>> obtenerPrestamos(
       String uid, String date) async {
     try {
+      // Se elimina el filtro de fecha para mostrar todos los préstamos pendientes
       final queryFilters = [
         ['partner_salesperson', '=', int.parse(uid)],
         ['loan_status', '=', 'pending']
@@ -202,7 +203,22 @@ class ClienteService extends BaseService {
       );
 
       if (response['result'] != null) {
-        return List<Map<String, dynamic>>.from(response['result']).map((loan) {
+        final allLoans = List<Map<String, dynamic>>.from(response['result']);
+
+        // Lógica para eliminar duplicados
+        final uniqueLoans = <int, Map<String, dynamic>>{};
+        for (final loan in allLoans) {
+          final loanId = loan['id'] as int?;
+          if (loanId != null) {
+            uniqueLoans[loanId] = loan;
+          }
+        }
+
+        final loans = uniqueLoans.values.toList();
+        Logger.info(
+            'Préstamos originales: ${allLoans.length}, Préstamos únicos: ${loans.length}');
+
+        return loans.map((loan) {
           final partnerInfo = loan['partner_id'] ?? [0, 'Sin nombre'];
           return {
             'id': loan['id'] ?? 0,

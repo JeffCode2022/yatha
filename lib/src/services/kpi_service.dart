@@ -36,45 +36,222 @@ class KpiService extends BaseService {
   Future<Map<String, dynamic>> getDailyKPIs(String userId, DateTime date,
       {bool isMonthly = false}) async {
     try {
-      final response = await _getPayments(userId, date, isMonthly);
-      final payments = _processPayments(response, isMonthly);
+      final url = Uri.parse('$baseUrl/jsonrpc');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          "jsonrpc": "2.0",
+          "method": "call",
+          "params": {
+            "service": "object",
+            "method": "execute",
+            "args": [
+              dbName,
+              int.parse(userId),
+              "1234",
+              "loan.payment",
+              "search_read",
+              [
+                ["loan_id", "!=", false],
+                ["loan_id.partner_salesperson", "=", int.parse(userId)],
+                ["payment_date", "=", DateUtils.formatDate(date)]
+              ],
+              [
+                "id",
+                "name",
+                "payment_date",
+                "actual_payment_date",
+                "payment_status",
+                "payment_amount",
+                "paid_amount",
+                "paid_amount_cash",
+                "paid_amount_transferencia",
+                "partner_id",
+                "loan_id",
+                "payment_met"
+              ]
+            ]
+          }
+        }),
+      );
 
-      final totalExpected = _calculateTotalExpected(payments);
-      final totalPaid = _calculateTotalPaid(payments);
-      final statusCounts = _calculateStatusCounts(payments);
-      final completionPercentage = totalExpected > 0
-          ? (totalPaid / totalExpected * 100).toDouble()
-          : 0.0;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('Respuesta cruda del API: $data');
 
-      return {
-        'success': true,
-        'data': {
-          'payments': payments,
-          'totals': {
-            'expected': totalExpected,
-            'paid': totalPaid,
-            'completionPercentage': completionPercentage
-          },
-          'statusCounts': statusCounts,
-          'date': DateUtils.formatDate(date),
-          'isMonthly': isMonthly
+        // Verificar si hay error en la respuesta
+        if (data['error'] != null) {
+          Logger.error('Error del servidor Odoo', data['error']);
+          return {
+            'success': false,
+            'error': data['error']['message'] ?? 'Error del servidor Odoo',
+            'data': {
+              'payments': [],
+              'totals': {
+                'expected': 0.0,
+                'paid': 0.0,
+                'completionPercentage': 0.0
+              },
+              'pagosRealizados': 0,
+              'pagosPendientes': 0,
+              'date': DateUtils.formatDate(date),
+              'isMonthly': isMonthly
+            }
+          };
         }
-      };
+
+        // Verificar si hay resultado
+        if (data['result'] == null) {
+          Logger.warning('No hay resultado en la respuesta del API');
+          return {
+            'success': false,
+            'error': 'No se encontraron datos para la fecha especificada',
+            'data': {
+              'payments': [],
+              'totals': {
+                'expected': 0.0,
+                'paid': 0.0,
+                'completionPercentage': 0.0
+              },
+              'pagosRealizados': 0,
+              'pagosPendientes': 0,
+              'date': DateUtils.formatDate(date),
+              'isMonthly': isMonthly
+            }
+          };
+        }
+
+        final result = data['result'];
+        if (result is Map) {
+          final liquidacion = result['liquidacion_diaria'] ?? {};
+          final pagos = result['pagos'] ?? [];
+
+          final totalDue = liquidacion['total_due'] ?? 0.0;
+          final totalCollected = liquidacion['total_collected'] ?? 0.0;
+          final efficiency = liquidacion['progress_percentage'] ?? 0.0;
+
+          int pagosRealizados = pagos
+              .where(
+                  (p) => (p['pagado'] == true || p['payment_status'] == 'paid'))
+              .length;
+          int pagosPendientes = pagos
+              .where(
+                  (p) => (p['pagado'] != true && p['payment_status'] != 'paid'))
+              .length;
+
+          final payments = _processPayments(pagos, false);
+
+          return {
+            'success': true,
+            'data': {
+              'payments': payments,
+              'totals': {
+                'expected': totalDue,
+                'paid': totalCollected,
+                'completionPercentage': efficiency,
+              },
+              'pagosRealizados': pagosRealizados,
+              'pagosPendientes': pagosPendientes,
+              'date': DateUtils.formatDate(date),
+              'isMonthly': isMonthly
+            }
+          };
+        } else if (result is List) {
+          final pagos = result;
+          double totalDue = 0.0;
+          double totalCollected = 0.0;
+          int pagosRealizados = 0;
+          int pagosPendientes = 0;
+
+          for (final p in pagos) {
+            final paymentAmount = (p['payment_amount'] ?? 0.0).toDouble();
+            double paidAmount = 0.0;
+            if (p['payment_met'] == 'mixto') {
+              paidAmount = (p['paid_amount_cash'] ?? 0.0).toDouble() +
+                  (p['paid_amount_transferencia'] ?? 0.0).toDouble();
+            } else {
+              paidAmount = (p['paid_amount'] ?? 0.0).toDouble();
+            }
+            totalDue += paymentAmount;
+            totalCollected += paidAmount;
+            if ((p['payment_status'] ?? '') == 'paid' ||
+                (p['payment_status'] ?? '') == 'overpaid') {
+              pagosRealizados++;
+            } else {
+              pagosPendientes++;
+            }
+          }
+          final efficiency =
+              totalDue > 0 ? (totalCollected / totalDue) * 100 : 0.0;
+          final payments = _processPayments(pagos, false);
+
+          return {
+            'success': true,
+            'data': {
+              'payments': payments,
+              'totals': {
+                'expected': totalDue,
+                'paid': totalCollected,
+                'completionPercentage': efficiency,
+              },
+              'pagosRealizados': pagosRealizados,
+              'pagosPendientes': pagosPendientes,
+              'date': DateUtils.formatDate(date),
+              'isMonthly': isMonthly
+            }
+          };
+        } else {
+          Logger.warning('Tipo de resultado inesperado: ${result.runtimeType}');
+          return {
+            'success': false,
+            'error': 'Formato de respuesta inesperado del servidor',
+            'data': {
+              'payments': [],
+              'totals': {
+                'expected': 0.0,
+                'paid': 0.0,
+                'completionPercentage': 0.0
+              },
+              'pagosRealizados': 0,
+              'pagosPendientes': 0,
+              'date': DateUtils.formatDate(date),
+              'isMonthly': isMonthly
+            }
+          };
+        }
+      } else {
+        Logger.error('Error HTTP', 'Status code: ${response.statusCode}');
+        return {
+          'success': false,
+          'error': 'Error de conexión: ${response.statusCode}',
+          'data': {
+            'payments': [],
+            'totals': {
+              'expected': 0.0,
+              'paid': 0.0,
+              'completionPercentage': 0.0
+            },
+            'pagosRealizados': 0,
+            'pagosPendientes': 0,
+            'date': DateUtils.formatDate(date),
+            'isMonthly': isMonthly
+          }
+        };
+      }
     } catch (e) {
       Logger.error('Error en getDailyKPIs', e);
       return {
         'success': false,
-        'error': e.toString(),
+        'error': 'Error interno: ${e.toString()}',
         'data': {
           'payments': [],
           'totals': {'expected': 0.0, 'paid': 0.0, 'completionPercentage': 0.0},
-          'statusCounts': {
-            'pending': 0,
-            'late': 0,
-            'completed': 0,
-            'cancelled': 0,
-            'partial': 0
-          },
+          'pagosRealizados': 0,
+          'pagosPendientes': 0,
           'date': DateUtils.formatDate(date),
           'isMonthly': isMonthly
         }

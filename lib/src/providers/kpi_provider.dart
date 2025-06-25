@@ -2,6 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:yatha_app/src/services/kpi_service.dart';
 
+/// KpiProvider - Proveedor para gestionar KPIs de préstamos y pagos
+///
+/// Este provider calcula automáticamente:
+/// - Meta (total esperado)
+/// - Recaudado (total pagado)
+/// - Eficiencia (porcentaje de cumplimiento)
+/// - Pagos pendientes, a tiempo y tardíos
+/// - Monto pendiente y préstamos pendientes
+///
+/// Uso:
+/// ```dart
+/// final kpiProvider = Provider.of<KpiProvider>(context, listen: false);
+/// await kpiProvider.fetchDailyKPIs(userId, date);
+///
+/// // Acceder a KPIs
+/// double meta = kpiProvider.meta;
+/// double recaudado = kpiProvider.recaudado;
+/// double eficiencia = kpiProvider.eficiencia;
+/// int pendientes = kpiProvider.pagosPendientes;
+/// int aTiempo = kpiProvider.pagosATiempo;
+/// int tardios = kpiProvider.pagosTardios;
+///
+/// // Obtener resumen completo
+/// Map<String, dynamic> resumen = kpiProvider.kpiResumen;
+/// Map<String, dynamic> estadisticas = kpiProvider.estadisticasDetalladas;
+/// ```
 class KpiProvider extends ChangeNotifier {
   final KpiService _kpiService = KpiService();
 
@@ -27,6 +53,7 @@ class KpiProvider extends ChangeNotifier {
   String _currentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
   String? _currentUserId;
   bool _disposed = false;
+  bool _sessionExpired = false;
 
   // Getters
   bool get isLoading => _isLoading;
@@ -58,6 +85,26 @@ class KpiProvider extends ChangeNotifier {
   double getTotalPaidAmount() => totalPaid;
   double getTotalExpectedAmount() => totalExpected;
   double getProgressPercentage() => progressPercentage;
+
+  // Nuevos métodos para KPIs específicos
+  double get meta => totalExpected; // Total esperado
+  double get recaudado => totalPaid; // Total pagado
+  double get eficiencia => completionPercentage; // Porcentaje de eficiencia
+  int get pagosPendientes => getPendingPaymentsCount(); // Pagos pendientes
+  int get pagosATiempo => getOnTimePaymentsCount(); // Pagos a tiempo
+  int get pagosTardios => getLatePaymentsCount(); // Pagos tardíos
+
+  // Método para obtener resumen de KPIs
+  Map<String, dynamic> get kpiResumen => {
+        'meta': meta,
+        'recaudado': recaudado,
+        'eficiencia': eficiencia,
+        'pagosPendientes': pagosPendientes,
+        'pagosATiempo': pagosATiempo,
+        'pagosTardios': pagosTardios,
+        'montoPendiente': pendingAmount,
+        'prestamosPendientes': totalLoans,
+      };
 
   // Getter para datos de KPI
   Map<String, dynamic> get kpiData => {
@@ -109,64 +156,120 @@ class KpiProvider extends ChangeNotifier {
       if (response['success']) {
         final data = response['data'];
         _payments = List<Map<String, dynamic>>.from(data['payments']);
-
-        // Procesar los pagos y actualizar los contadores
-        int ontimeCount = 0;
-        for (var payment in _payments) {
-          if (payment['timeStatus'] == 'ontime' &&
-              (payment['status'] == 'paid' ||
-                  payment['status'] == 'completed' ||
-                  payment['status'] == 'overpaid' ||
-                  payment['status'] == 'partial')) {
-            ontimeCount++;
-          }
-        }
-
+        // Filtrar préstamos renovados/refinanciados/cancelados
+        _payments = _payments.where((p) {
+          final loanStatus = p['loan_status']?.toString() ?? '';
+          return loanStatus != 'refinanced' &&
+              loanStatus != 'renewed' &&
+              loanStatus != 'cancelled';
+        }).toList();
         _totals = Map<String, dynamic>.from(data['totals']);
-        _statusCounts = Map<String, int>.from(data['statusCounts']);
-        _statusCounts['ontime'] = ontimeCount;
+        _pagosRealizados = data['pagosRealizados'] ?? 0;
+        _pagosPendientes = data['pagosPendientes'] ?? 0;
         _currentDate = data['date'];
         _error = null;
-
-        // Calcular totales adicionales
-        double totalPendingAmount = 0.0;
-        int pendingLoans = 0;
-        Set<dynamic> processedLoans = {};
-
-        for (var payment in _payments) {
-          if (payment['status'] == 'pending' || payment['status'] == 'late') {
-            totalPendingAmount += (payment['expectedAmount'] ?? 0.0) -
-                (payment['paidAmount'] ?? 0.0);
-            if (payment['loanId'] != null &&
-                !processedLoans.contains(payment['loanId'])) {
-              pendingLoans++;
-              processedLoans.add(payment['loanId']);
-            }
-          }
-        }
-
-        _totals['pendingAmount'] = totalPendingAmount;
-        _totals['totalLoans'] = pendingLoans;
-
-        print('KpiProvider - Datos actualizados:');
-        print('KpiProvider - Total esperado: ${_totals['expected']}');
-        print('KpiProvider - Total pagado: ${_totals['paid']}');
-        print('KpiProvider - Monto pendiente: ${_totals['pendingAmount']}');
-        print('KpiProvider - Préstamos pendientes: ${_totals['totalLoans']}');
-        print('KpiProvider - Pagos a tiempo: ${_statusCounts['ontime']}');
-        print('KpiProvider - Pagos tardíos: ${_statusCounts['late']}');
-        print('KpiProvider - Pagos pendientes: ${_statusCounts['pending']}');
+        _calculateCompleteKPIs();
       } else {
-        _error = response['error'];
+        // Manejar errores específicos del servidor
+        final errorMessage = response['error'] ?? 'Error desconocido';
+        if (errorMessage.contains('MissingError')) {
+          _error =
+              'No se encontraron datos para la fecha especificada. Verifique que tenga préstamos asignados para hoy.';
+        } else if (errorMessage.contains('AccessDenied')) {
+          // Intentar renovar la sesión automáticamente
+          _error = 'Sesión expirada. Por favor, inicie sesión nuevamente.';
+          // Notificar que la sesión expiró para que se maneje en el UI
+          _notifySessionExpired();
+        } else if (errorMessage.contains('Odoo Server Error')) {
+          _error =
+              'Error del servidor. Por favor, intente nuevamente en unos minutos.';
+        } else if (errorMessage.contains('Error de conexión')) {
+          _error = 'Error de conexión. Verifique su conexión a internet.';
+        } else {
+          _error = 'Error al cargar los datos: $errorMessage';
+        }
         _resetData();
       }
     } catch (e) {
-      _error = e.toString();
+      _error = 'Error interno de la aplicación. Por favor, reinicie la app.';
       _resetData();
     } finally {
       _isLoading = false;
       _safeNotifyListeners();
     }
+  }
+
+  void _calculateCompleteKPIs() {
+    // Inicializar contadores
+    double totalExpected = 0.0;
+    double totalPaid = 0.0;
+    double totalPendingAmount = 0.0;
+    int pendingLoans = 0;
+    int ontimeCount = 0;
+    int lateCount = 0;
+    int pendingCount = 0;
+    Set<dynamic> processedLoans = {};
+
+    // Procesar cada pago
+    for (var payment in _payments) {
+      final expectedAmount = (payment['expectedAmount'] ?? 0.0).toDouble();
+      final paidAmount = (payment['paidAmount'] ?? 0.0).toDouble();
+      final status = payment['status']?.toString() ?? 'pending';
+      final timeStatus = payment['timeStatus']?.toString();
+      final loanId = payment['loanId'];
+
+      // Calcular totales
+      totalExpected += expectedAmount;
+      totalPaid += paidAmount;
+
+      // Calcular monto pendiente y préstamos pendientes
+      if (status == 'pending' || status == 'late') {
+        totalPendingAmount += expectedAmount - paidAmount;
+        if (loanId != null && !processedLoans.contains(loanId)) {
+          pendingLoans++;
+          processedLoans.add(loanId);
+        }
+      }
+
+      // Contar por estado de tiempo
+      if (status == 'paid' ||
+          status == 'completed' ||
+          status == 'overpaid' ||
+          status == 'partial') {
+        if (timeStatus == 'ontime') {
+          ontimeCount++;
+        } else if (timeStatus == 'late') {
+          lateCount++;
+        }
+      } else if (status == 'pending') {
+        pendingCount++;
+      } else if (status == 'late') {
+        lateCount++;
+      }
+    }
+
+    // Calcular eficiencia
+    double completionPercentage =
+        totalExpected > 0 ? (totalPaid / totalExpected * 100) : 0.0;
+
+    // Actualizar totales
+    _totals = {
+      'expected': totalExpected,
+      'paid': totalPaid,
+      'completionPercentage': completionPercentage,
+      'pendingAmount': totalPendingAmount,
+      'totalLoans': pendingLoans
+    };
+
+    // Actualizar contadores de estado
+    _statusCounts = {
+      'pending': pendingCount,
+      'late': lateCount,
+      'completed': 0, // Se calcula por separado
+      'cancelled': 0,
+      'partial': 0,
+      'ontime': ontimeCount
+    };
   }
 
   void _resetData() {
@@ -311,25 +414,81 @@ class KpiProvider extends ChangeNotifier {
         : 'Cliente no especificado';
   }
 
-  void _updateTotals() {
-    double totalPendingAmount = 0.0;
-    int pendingLoans = 0;
+  // Método para obtener estadísticas detalladas
+  Map<String, dynamic> get estadisticasDetalladas {
+    final totalPayments = _payments.length;
+    final completedPayments = _payments
+        .where((p) =>
+            p['status'] == 'paid' ||
+            p['status'] == 'completed' ||
+            p['status'] == 'overpaid')
+        .length;
 
-    for (var payment in _payments) {
-      if (payment['status'] == 'pending' || payment['status'] == 'late') {
-        totalPendingAmount +=
-            (payment['expectedAmount'] ?? 0.0) - (payment['paidAmount'] ?? 0.0);
-        if (!_processedLoans.contains(payment['loanId'])) {
-          pendingLoans++;
-          _processedLoans.add(payment['loanId']);
-        }
-      }
-    }
+    return {
+      'totalPagos': totalPayments,
+      'pagosCompletados': completedPayments,
+      'pagosPendientes': pagosPendientes,
+      'pagosATiempo': pagosATiempo,
+      'pagosTardios': pagosTardios,
+      'meta': meta,
+      'recaudado': recaudado,
+      'eficiencia': eficiencia,
+      'montoPendiente': pendingAmount,
+      'prestamosPendientes': totalLoans,
+      'porcentajeCompletado':
+          totalPayments > 0 ? (completedPayments / totalPayments * 100) : 0.0,
+    };
+  }
 
-    _totals['pendingAmount'] = totalPendingAmount;
-    _totals['totalLoans'] = pendingLoans;
-    _processedLoans.clear();
+  // Método para obtener pagos filtrados por estado
+  List<Map<String, dynamic>> getPagosPorEstado(String estado) {
+    return _payments
+        .where((payment) =>
+            payment['status']?.toString().toLowerCase() == estado.toLowerCase())
+        .toList();
+  }
+
+  // Método para obtener pagos por tiempo
+  List<Map<String, dynamic>> getPagosPorTiempo(String tiempo) {
+    return _payments
+        .where((payment) =>
+            payment['timeStatus']?.toString().toLowerCase() ==
+            tiempo.toLowerCase())
+        .toList();
+  }
+
+  // Método para verificar si hay datos cargados
+  bool get tieneDatos => _payments.isNotEmpty;
+
+  // Método para obtener el resumen en formato de texto
+  String get resumenTexto {
+    return 'Meta: S/.${meta.toStringAsFixed(2)} | '
+        'Recaudado: S/.${recaudado.toStringAsFixed(2)} | '
+        'Eficiencia: ${eficiencia.toStringAsFixed(1)}% | '
+        'Pendientes: $pagosPendientes | '
+        'A tiempo: $pagosATiempo | '
+        'Tardíos: $pagosTardios';
   }
 
   final Set<dynamic> _processedLoans = {};
+
+  // Nuevos campos para pagos realizados y pendientes
+  int _pagosRealizados = 0;
+  int _pagosPendientes = 0;
+  int get pagosRealizados => _pagosRealizados;
+
+  void _notifySessionExpired() {
+    // Marcar que la sesión expiró para que se maneje en el UI
+    _sessionExpired = true;
+    _safeNotifyListeners();
+  }
+
+  // Getter para verificar si la sesión expiró
+  bool get sessionExpired => _sessionExpired;
+
+  // Método para resetear el estado de sesión expirada
+  void resetSessionExpired() {
+    _sessionExpired = false;
+    _safeNotifyListeners();
+  }
 }

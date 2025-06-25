@@ -24,6 +24,7 @@ class _NewKpiScreenState extends State<NewKpiScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  bool _isMonthly = false;
 
   @override
   void initState() {
@@ -113,8 +114,8 @@ class _NewKpiScreenState extends State<NewKpiScreen>
       } else {
         _filteredPayments = kpiProvider.payments.where((payment) {
           final clientName =
-              payment['partner_id'] != null && payment['partner_id'] is List
-                  ? payment['partner_id'][1].toString().toLowerCase()
+              payment['partnerId'] != null && payment['partnerId'] is List
+                  ? payment['partnerId'][1].toString().toLowerCase()
                   : '';
           final paymentNumber = payment['name']?.toString().toLowerCase() ?? '';
           final searchLower = query.toLowerCase();
@@ -298,6 +299,44 @@ class _NewKpiScreenState extends State<NewKpiScreen>
   }
 
   Widget _buildErrorState(String error) {
+    // Determinar el mensaje amigable basado en el error
+    String userFriendlyMessage = 'Error al cargar los datos.';
+    String title = 'Error al cargar datos';
+    IconData icon = Iconsax.danger;
+    Color iconColor = Colors.red[400]!;
+
+    if (error.contains('MissingError')) {
+      title = 'Sin datos disponibles';
+      userFriendlyMessage =
+          'No se encontraron préstamos asignados para la fecha seleccionada.';
+      icon = Iconsax.document_text;
+      iconColor = Colors.orange[400]!;
+    } else if (error.contains('AccessDenied')) {
+      title = 'Sesión expirada';
+      userFriendlyMessage =
+          'Su sesión ha expirado. Por favor, inicie sesión nuevamente.';
+      icon = Iconsax.logout;
+      iconColor = Colors.red[400]!;
+    } else if (error.contains('Odoo Server Error')) {
+      title = 'Error del servidor';
+      userFriendlyMessage =
+          'El servidor está experimentando problemas. Intente nuevamente en unos minutos.';
+      icon = Iconsax.warning_2;
+      iconColor = Colors.red[400]!;
+    } else if (error.contains('Error de conexión')) {
+      title = 'Error de conexión';
+      userFriendlyMessage =
+          'Verifique su conexión a internet e intente nuevamente.';
+      icon = Iconsax.wifi_square;
+      iconColor = Colors.blue[400]!;
+    } else if (error.contains('No se encontraron datos')) {
+      title = 'Sin datos';
+      userFriendlyMessage =
+          'No hay información disponible para la fecha seleccionada.';
+      icon = Iconsax.document_text;
+      iconColor = Colors.grey[400]!;
+    }
+
     return Center(
       child: Container(
         padding: const EdgeInsets.all(24),
@@ -320,56 +359,103 @@ class _NewKpiScreenState extends State<NewKpiScreen>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red[50],
+                color: iconColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Iconsax.danger,
-                  size: 48,
-                  color: Colors.red[400]), // Iconsax en lugar de Material Icons
+              child: Icon(icon, size: 48, color: iconColor),
             ),
             const SizedBox(height: 20),
             Text(
-              'Error al cargar datos',
+              title,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.red[700],
+                color: iconColor,
               ),
             ),
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                error,
+                userFriendlyMessage,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.red[700],
+                  color: Colors.grey[700],
                   fontSize: 14,
                 ),
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadKpis,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _loadKpis,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: Icon(Iconsax.refresh, size: 16),
+                  label: const Text(
+                    'Reintentar',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
-                elevation: 0,
-              ),
-              icon: Icon(Iconsax.refresh,
-                  size: 16), // Iconsax en lugar de Material Icons
-              label: const Text(
-                'Reintentar',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+                if (error.contains('MissingError') ||
+                    error.contains('No se encontraron datos'))
+                  ElevatedButton.icon(
+                    onPressed: () => _selectDate(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[100],
+                      foregroundColor: Colors.grey[700],
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                    icon: Icon(Iconsax.calendar_1, size: 16),
+                    label: const Text(
+                      'Cambiar fecha',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                if (error.contains('AccessDenied'))
+                  ElevatedButton.icon(
+                    onPressed: () => _handleLogout(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[100],
+                      foregroundColor: Colors.red[700],
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                    icon: Icon(Iconsax.logout, size: 16),
+                    label: const Text(
+                      'Cerrar sesión',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -410,9 +496,10 @@ class _NewKpiScreenState extends State<NewKpiScreen>
   }
 
   Widget _buildProgressCard(KpiProvider provider) {
-    final efficiency = ((provider.totalPaid / provider.totalExpected) * 100)
-        .toStringAsFixed(0);
-    final progressValue = provider.totalPaid / provider.totalExpected;
+    final efficiency = provider.eficiencia;
+    final progressValue = provider.totalExpected > 0
+        ? (provider.totalPaid / provider.totalExpected)
+        : 0.0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -462,27 +549,25 @@ class _NewKpiScreenState extends State<NewKpiScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _getEfficiencyColor(double.parse(efficiency))
-                      .withOpacity(0.1),
+                  color: _getEfficiencyColor(efficiency).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: _getEfficiencyColor(double.parse(efficiency))
-                        .withOpacity(0.3),
+                    color: _getEfficiencyColor(efficiency).withOpacity(0.3),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _getEfficiencyIcon(double.parse(efficiency)),
+                      _getEfficiencyIcon(efficiency),
                       size: 14,
-                      color: _getEfficiencyColor(double.parse(efficiency)),
+                      color: _getEfficiencyColor(efficiency),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Eficiencia: $efficiency%',
+                      'Eficiencia: ${efficiency.toStringAsFixed(0)}%',
                       style: TextStyle(
-                        color: _getEfficiencyColor(double.parse(efficiency)),
+                        color: _getEfficiencyColor(efficiency),
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
                       ),
@@ -591,7 +676,7 @@ class _NewKpiScreenState extends State<NewKpiScreen>
             ),
           ),
           const SizedBox(height: 16),
-          _buildPaymentStatusIndicators(provider),
+          _buildKpiMetricsGrid(provider),
         ],
       ),
     );
@@ -621,73 +706,110 @@ class _NewKpiScreenState extends State<NewKpiScreen>
     return const Color.fromARGB(255, 234, 71, 38);
   }
 
-  Widget _buildPaymentStatusIndicators(KpiProvider provider) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  Widget _buildKpiMetricsGrid(KpiProvider provider) {
+    final totalPagos = (provider.statusCounts['ontime'] ?? 0) +
+        (provider.statusCounts['late'] ?? 0) +
+        (provider.statusCounts['pending'] ?? 0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildStatusIndicator(
-          'A tiempo',
-          provider.statusCounts['ontime'] ?? 0,
-          Colors.green,
-          Iconsax.tick_circle, // Iconsax en lugar de Material Icons
+        Padding(
+          padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+          child: Text(
+            'Indicadores del día',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
         ),
-        _buildStatusIndicator(
-          'Tardíos',
-          provider.statusCounts['late'] ?? 0,
-          Colors.orange,
-          Iconsax.warning_2, // Iconsax en lugar de Material Icons
-        ),
-        _buildStatusIndicator(
-          'Pendientes',
-          provider.statusCounts['pending'] ?? 0,
-          Colors.grey,
-          Iconsax.timer, // Iconsax en lugar de Material Icons
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildModernMetricCard(
+              label: 'A tiempo',
+              value: provider.statusCounts['ontime'] ?? 0,
+              color: const Color(0xFF00C853), // Verde fuerte
+              icon: Iconsax.tick_circle,
+              subtitle: 'Pagos realizados',
+            ),
+            _buildModernMetricCard(
+              label: 'Tardíos',
+              value: provider.statusCounts['late'] ?? 0,
+              color: const Color(0xFF2979FF), // Azul fuerte
+              icon: Iconsax.warning_2,
+              subtitle: 'Pagos fuera de fecha',
+            ),
+            _buildModernMetricCard(
+              label: 'Pendientes',
+              value: provider.statusCounts['pending'] ?? 0,
+              color: const Color(0xFFFF6D00), // Naranja fuerte
+              icon: Iconsax.timer,
+              subtitle: 'Pagos sin realizar',
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildStatusIndicator(
-    String label,
-    int count,
-    Color color,
-    IconData icon,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              shape: BoxShape.circle,
+  Widget _buildModernMetricCard({
+    required String label,
+    required int value,
+    required Color color,
+    required IconData icon,
+    required String subtitle,
+  }) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.18),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            count.toString(),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 36),
+            const SizedBox(height: 12),
+            Text(
+              value.toString(),
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.2,
+              ),
             ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: color.withOpacity(0.8),
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.85),
+                fontWeight: FontWeight.w400,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -735,7 +857,7 @@ class _NewKpiScreenState extends State<NewKpiScreen>
           physics: const NeverScrollableScrollPhysics(),
           itemCount: _filteredPayments.length,
           itemBuilder: (context, index) =>
-              _buildPaymentCard(_filteredPayments[index], index),
+              _buildPaymentCard(provider, _filteredPayments[index], index),
         ),
       ],
     );
@@ -844,12 +966,12 @@ class _NewKpiScreenState extends State<NewKpiScreen>
     );
   }
 
-  Widget _buildPaymentCard(Map<dynamic, dynamic> payment, int index) {
+  Widget _buildPaymentCard(
+      KpiProvider provider, Map<dynamic, dynamic> payment, int index) {
     final paymentStatus = payment['timeStatus'] ?? 'pending';
     final statusInfo = _getTimeStatusInfo(paymentStatus);
-    final clientName = Provider.of<KpiProvider>(context).getClientName(payment);
-    final paymentDetails =
-        Provider.of<KpiProvider>(context).getPaymentDetails(payment);
+    final clientName = provider.getClientName(payment);
+    final paymentDetails = provider.getPaymentDetails(payment);
 
     // Animación de entrada escalonada
     final delay = Duration(milliseconds: 50 * index);
@@ -862,124 +984,135 @@ class _NewKpiScreenState extends State<NewKpiScreen>
           duration: const Duration(milliseconds: 300),
           child: Container(
             margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.grey[200]!,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 4,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 1),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 246, 250, 246),
+                  border: Border(
+                    left: BorderSide(
+                      color: AppTheme.colorScheme.primary,
+                      width: 6.0,
+                    ),
+                    top: BorderSide(color: Colors.grey[200]!),
+                    right: BorderSide(color: Colors.grey[200]!),
+                    bottom: BorderSide(color: Colors.grey[200]!),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      offset: const Offset(0, 2),
+                      blurRadius: 5,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      offset: const Offset(0, 8),
+                      blurRadius: 15,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: ExpansionTile(
-              tilePadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              title: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
+                child: ExpansionTile(
+                  tilePadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  title: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: statusInfo['color'].withOpacity(0.1),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: statusInfo['color'].withOpacity(0.3),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            clientName.isNotEmpty
+                                ? clientName[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              color: statusInfo['color'],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              clientName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'Pago #${payment['name'] ?? 'Sin número'}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  trailing: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: statusInfo['color'].withOpacity(0.1),
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: statusInfo['color'].withOpacity(0.3),
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        clientName.isNotEmpty
-                            ? clientName[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          color: statusInfo['color'],
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        Icon(statusInfo['icon'],
+                            size: 12, color: statusInfo['color']),
+                        const SizedBox(width: 4),
                         Text(
-                          clientName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          'Pago #${payment['name'] ?? 'Sin número'}',
+                          statusInfo['text'],
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: statusInfo['color'],
+                            fontWeight: FontWeight.w500,
                             fontSize: 12,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusInfo['color'].withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: statusInfo['color'].withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(statusInfo['icon'],
-                        size: 12, color: statusInfo['color']),
-                    const SizedBox(width: 4),
-                    Text(
-                      statusInfo['text'],
-                      style: TextStyle(
-                        color: statusInfo['color'],
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          ...paymentDetails.map((detail) => _buildPaymentDetail(
+                                detail['label'],
+                                detail['value'],
+                              )),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(12),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      ...paymentDetails.map((detail) => _buildPaymentDetail(
-                            detail['label'],
-                            detail['value'].toString().startsWith('\$')
-                                ? detail['value']
-                                    .toString()
-                                    .replaceFirst('\$', 'S/.')
-                                : detail['value'],
-                          )),
-                    ],
-                  ),
-                ),
-              ],
             ),
           ),
         );
@@ -1033,6 +1166,38 @@ class _NewKpiScreenState extends State<NewKpiScreen>
           'icon': Iconsax.timer, // Iconsax en lugar de Material Icons
           'text': 'Pendiente'
         };
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final kpiProvider = Provider.of<KpiProvider>(context, listen: false);
+
+      // Limpiar datos
+      kpiProvider.changeUser(null);
+
+      // Cerrar sesión
+      await authProvider.logout();
+
+      // Navegar a la pantalla de login
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error al cerrar sesión: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cerrar sesión: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

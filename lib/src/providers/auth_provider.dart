@@ -180,4 +180,58 @@ class AuthProvider with ChangeNotifier {
       print('AuthProvider - Error durante el logout: $e');
     }
   }
+
+  // Función para verificar si la sesión sigue siendo válida
+  Future<bool> isSessionValid() async {
+    if (!_isAuthenticated || _user == null) {
+      return false;
+    }
+
+    try {
+      // Verificar si tenemos credenciales guardadas
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('username');
+      final password = prefs.getString('password');
+
+      return username != null && password != null;
+    } catch (e) {
+      print('AuthProvider - Error verificando sesión: $e');
+      return false;
+    }
+  }
+
+  // Función para renovar la sesión automáticamente
+  Future<bool> refreshSession() async {
+    if (!_isAuthenticated || _user == null) {
+      return false;
+    }
+
+    try {
+      print('AuthProvider - Intentando renovar sesión');
+
+      // Obtener credenciales guardadas
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('username');
+      final password = prefs.getString('password');
+
+      if (username == null || password == null) {
+        print(
+            'AuthProvider - No hay credenciales guardadas para renovar sesión');
+        return false;
+      }
+
+      // Intentar hacer login nuevamente
+      final success = await login(username, password);
+      if (success) {
+        print('AuthProvider - Sesión renovada exitosamente');
+        return true;
+      } else {
+        print('AuthProvider - No se pudo renovar la sesión');
+        return false;
+      }
+    } catch (e) {
+      print('AuthProvider - Error renovando sesión: $e');
+      return false;
+    }
+  }
 }

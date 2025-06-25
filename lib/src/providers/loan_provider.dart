@@ -45,8 +45,7 @@ class LoanProvider with ChangeNotifier {
         final loansList = response['loans'] ?? [];
         _loans = loansList.map<Loan>((loan) {
           final loanObject = Loan.fromJson(loan);
-          print(
-              'Loan object after fromJson in fetchLoans: ${loanObject.toJson()}'); // Debug print
+          print( 'Loan object after fromJson in fetchLoans: ${loanObject.toJson()}'); // Debug print
           return loanObject;
         }).toList();
         _updateLoanStats();

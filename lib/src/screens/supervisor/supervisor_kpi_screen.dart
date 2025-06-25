@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../../utils/theme/app_theme.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'dart:ui';
+import '../../utils/widgets/indicator_card.dart';
 
 class SupervisorKpiScreen extends StatefulWidget {
   const SupervisorKpiScreen({Key? key}) : super(key: key);
@@ -572,11 +573,43 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
   }
 
   Widget _buildDateRangeIndicators(SupervisorProvider supervisorProvider) {
+    // Igual que el gestor: filtrar préstamos renovados/refinanciados/cancelados y usar los mismos campos que el servicio
+    final paymentsRaw = supervisorProvider.rangeKpis['payments'] ?? [];
+    final payments = paymentsRaw.where((p) {
+      final loanStatus = p['loan_status']?.toString() ?? '';
+      return loanStatus != 'refinanced' &&
+          loanStatus != 'renewed' &&
+          loanStatus != 'cancelled';
+    }).toList();
+
+    // Meta (total esperado)
+    final totalDue = payments.fold<double>(
+        0.0, (double sum, dynamic p) => sum + (p['payment_amount'] ?? 0.0));
+
+    // Total recaudado
+    final totalCollected = payments.fold<double>(
+        0.0, (double sum, dynamic p) => sum + (p['paid_amount'] ?? 0.0));
+
+    // Porcentaje de avance (progress_percentage)
+    final progressPercentage =
+        totalDue > 0 ? (totalCollected / totalDue) * 100 : 0.0;
+
+    // Contadores de pagos (igual que gestor)
+    int completedCount = 0;
+    int pendingCount = 0;
+    for (var p in payments) {
+      final status = p['payment_status']?.toString() ?? 'pending';
+      if (status == 'paid' || status == 'overpaid' || status == 'partial') {
+        completedCount++;
+      } else if (status == 'pending') {
+        pendingCount++;
+      }
+    }
+
     final currencyFormat = NumberFormat.currency(
       symbol: 'S/',
       decimalDigits: 2,
     );
-
     return Column(
       children: [
         Container(
@@ -625,23 +658,20 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _getEfficiencyColor(
-                              supervisorProvider.rangeEfficiencyPercentage)
+                      color: _getEfficiencyColor(progressPercentage / 100)
                           .withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: _getEfficiencyColor(
-                                supervisorProvider.rangeEfficiencyPercentage)
+                        color: _getEfficiencyColor(progressPercentage / 100)
                             .withOpacity(0.3),
                       ),
                     ),
                     child: Text(
-                      '${(supervisorProvider.rangeEfficiencyPercentage * 100).toStringAsFixed(1)}%',
+                      '${progressPercentage.toStringAsFixed(1)}%',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: _getEfficiencyColor(
-                            supervisorProvider.rangeEfficiencyPercentage),
+                        color: _getEfficiencyColor(progressPercentage / 100),
                       ),
                     ),
                   ),
@@ -651,10 +681,10 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
-                  value: supervisorProvider.rangeEfficiencyPercentage,
+                  value: progressPercentage / 100,
                   backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(_getEfficiencyColor(
-                      supervisorProvider.rangeEfficiencyPercentage)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                      _getEfficiencyColor(progressPercentage / 100)),
                   minHeight: 8,
                 ),
               ),
@@ -670,8 +700,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                     ),
                   ),
                   Text(
-                    currencyFormat
-                        .format(supervisorProvider.rangeExpectedAmount),
+                    currencyFormat.format(totalDue),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -691,37 +720,33 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
           crossAxisSpacing: 16,
           childAspectRatio: 1.2,
           children: [
-            GestureDetector(
+            IndicatorCard(
+              label: 'Pendientes',
+              value: pendingCount.toString(),
+              color: const Color(0xFFFF6D00),
+              icon: Iconsax.timer,
               onTap: () =>
                   _showClientsDialog(context, supervisorProvider, 'pending'),
-              child: _buildKpiCard(
-                'Pendientes',
-                supervisorProvider.rangePendingCount.toString(),
-                Colors.orange,
-                Iconsax.timer, // Iconsax para pendientes
-              ),
             ),
-            GestureDetector(
+            IndicatorCard(
+              label: 'Completados',
+              value: completedCount.toString(),
+              color: const Color(0xFF00C853),
+              icon: Iconsax.tick_circle,
               onTap: () =>
                   _showClientsDialog(context, supervisorProvider, 'paid'),
-              child: _buildKpiCard(
-                'Completados',
-                supervisorProvider.rangeCompletedCount.toString(),
-                Colors.green,
-                Iconsax.tick_circle, // Iconsax para completados
-              ),
             ),
-            _buildKpiCard(
-              'Recaudado',
-              currencyFormat.format(supervisorProvider.rangeCollectedAmount),
-              Colors.blue,
-              Iconsax.money, // Iconsax para pagos
+            IndicatorCard(
+              label: 'Recaudado',
+              value: currencyFormat.format(totalCollected),
+              color: const Color(0xFF2979FF),
+              icon: Iconsax.money,
             ),
-            _buildKpiCard(
-              'Total',
-              currencyFormat.format(supervisorProvider.rangeTotalAmount),
-              Colors.purple,
-              Iconsax.chart_21, // Iconsax para tendencia
+            IndicatorCard(
+              label: 'Meta',
+              value: currencyFormat.format(totalDue),
+              color: const Color(0xFF9C27B0),
+              icon: Iconsax.flag,
             ),
           ],
         ),
@@ -1188,11 +1213,11 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     final payments = supervisorProvider.rangeKpis['payments'] ?? [];
     final clientes = payments
         .where((p) =>
-            (status == 'pending' && p['payment_status'] == 'pending') ||
-            (status == 'paid' &&
-                (p['payment_status'] == 'paid' ||
-                    p['payment_status'] == 'overpaid' ||
-                    p['payment_status'] == 'partial')))
+            ((status == 'pending' && p['payment_status'] == 'pending') ||
+                (status == 'paid' &&
+                    (p['payment_status'] == 'paid' ||
+                        p['payment_status'] == 'overpaid' ||
+                        p['payment_status'] == 'partial'))))
         .toList();
 
     // Obtener los IDs de los préstamos únicos
@@ -1204,6 +1229,22 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     // Obtener los préstamos completos
     final loans = await supervisorProvider.getLoansByIds(loanIds);
 
+    // Filtrar clientes con saldo actual > 0
+    final clientesConSaldo = clientes.where((cliente) {
+      final loanId = cliente['loan_id'] is List
+          ? cliente['loan_id'][0]
+          : cliente['loan_id'];
+      final prestamo = loans.firstWhere(
+        (loan) => loan['id'] == loanId,
+        orElse: () => {'current_due': 0.0},
+      );
+      final saldoActual = prestamo['current_due'];
+      if (saldoActual is num) {
+        return saldoActual > 0;
+      }
+      return false;
+    }).toList();
+
     showDialog(
       context: context,
       builder: (context) {
@@ -1211,16 +1252,16 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
           title: Text(status == 'pending'
               ? 'Clientes Pendientes'
               : 'Clientes Completados'),
-          content: clientes.isEmpty
+          content: clientesConSaldo.isEmpty
               ? const Text('No hay clientes para mostrar.')
               : SizedBox(
                   width: double.maxFinite,
                   child: ListView.separated(
                     shrinkWrap: true,
-                    itemCount: clientes.length,
+                    itemCount: clientesConSaldo.length,
                     separatorBuilder: (_, __) => Divider(),
                     itemBuilder: (context, index) {
-                      final cliente = clientes[index];
+                      final cliente = clientesConSaldo[index];
                       final nombre = (cliente['partner_id'] is List &&
                               cliente['partner_id'].length > 1)
                           ? cliente['partner_id'][1]
