@@ -120,11 +120,6 @@ class PaymentProvider with ChangeNotifier {
     _safeNotifyListeners();
 
     try {
-      debugPrint(
-        'PaymentProvider - Obteniendo KPIs para fecha: $_selectedDate',
-      );
-      debugPrint('PaymentProvider - Usuario ID: $uid');
-
       final response = await ApiService().getDailyKPIs(uid, _selectedDate);
 
       if (_disposed) return;
@@ -132,15 +127,12 @@ class PaymentProvider with ChangeNotifier {
       if (response.containsKey('error')) {
         _errorMessage = response['error'];
         _kpiData = _emptyKpiData();
-        debugPrint('PaymentProvider - Error: $_errorMessage');
       } else {
         _kpiData = Map<String, dynamic>.from(response);
         _errorMessage = null;
-        debugPrint('PaymentProvider - Datos actualizados exitosamente');
       }
     } catch (e) {
       if (_disposed) return;
-      debugPrint('PaymentProvider - Error en fetchDailyKPIs: $e');
       _errorMessage = 'Error al cargar indicadores: $e';
       _kpiData = _emptyKpiData();
     } finally {

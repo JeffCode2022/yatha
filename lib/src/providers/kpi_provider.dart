@@ -223,7 +223,8 @@ class KpiProvider extends ChangeNotifier {
       totalPaid += paidAmount;
 
       // Calcular monto pendiente y préstamos pendientes
-      if (status == 'pending' || status == 'late') {
+      if ((status == 'pending' || status == 'late') &&
+          (expectedAmount - paidAmount) > 0.0) {
         totalPendingAmount += expectedAmount - paidAmount;
         if (loanId != null && !processedLoans.contains(loanId)) {
           pendingLoans++;
@@ -241,7 +242,7 @@ class KpiProvider extends ChangeNotifier {
         } else if (timeStatus == 'late') {
           lateCount++;
         }
-      } else if (status == 'pending') {
+      } else if (status == 'pending' && (expectedAmount - paidAmount) > 0.0) {
         pendingCount++;
       } else if (status == 'late') {
         lateCount++;

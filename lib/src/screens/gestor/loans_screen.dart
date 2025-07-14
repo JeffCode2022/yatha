@@ -405,9 +405,6 @@ class _LoansScreenState extends State<LoansScreen>
     final paymentPeriod = loan['payment_period'] ?? 'daily';
     final loanId = loan['id']?.toString() ?? '';
 
-    // Animación de entrada escalonada
-    final delay = Duration(milliseconds: 50 * index);
-
     // Iconos según el tipo de préstamo
     IconData periodIcon = paymentPeriod == 'daily'
         ? Iconsax.calendar_1 // Iconsax para préstamos diarios
@@ -418,265 +415,248 @@ class _LoansScreenState extends State<LoansScreen>
         ? Iconsax.timer_start // Iconsax para préstamos pendientes
         : Iconsax.tick_circle; // Iconsax para préstamos pagados
 
-    return FutureBuilder(
-      future: Future.delayed(delay),
-      builder: (context, snapshot) {
-        return AnimatedOpacity(
-          opacity: snapshot.connectionState == ConnectionState.done ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 300),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _navigateToLoanDetail(loan, loanId),
-                borderRadius: BorderRadius.circular(12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 246, 250, 246),
-                      border: Border(
-                        left: BorderSide(
-                          color: AppTheme.colorScheme.primary,
-                          width: 6.0,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _navigateToLoanDetail(loan, loanId),
+          borderRadius: BorderRadius.circular(12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 246, 250, 246),
+                border: Border(
+                  left: BorderSide(
+                    color: AppTheme.colorScheme.primary,
+                    width: 6.0,
+                  ),
+                  top: BorderSide(color: Colors.grey[200]!),
+                  right: BorderSide(color: Colors.grey[200]!),
+                  bottom: BorderSide(color: Colors.grey[200]!),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    offset: const Offset(0, 2),
+                    blurRadius: 5,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    offset: const Offset(0, 8),
+                    blurRadius: 15,
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color:
+                                AppTheme.colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              Iconsax.profile_circle, // Iconsax para perfil
+                              color: AppTheme.colorScheme.primary,
+                              size: 20,
+                            ),
+                          ),
                         ),
-                        top: BorderSide(color: Colors.grey[200]!),
-                        right: BorderSide(color: Colors.grey[200]!),
-                        bottom: BorderSide(color: Colors.grey[200]!),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          offset: const Offset(0, 2),
-                          blurRadius: 5,
-                        ),
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          offset: const Offset(0, 8),
-                          blurRadius: 15,
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.colorScheme.primary
-                                      .withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                              AutoSizeText(
+                                clientName,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
                                 ),
-                                child: Center(
-                                  child: Icon(
-                                    Iconsax
-                                        .profile_circle, // Iconsax para perfil
-                                    color: AppTheme.colorScheme.primary,
-                                    size: 20,
-                                  ),
-                                ),
+                                maxLines: 1,
+                                minFontSize: 8,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    AutoSizeText(
-                                      clientName,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey[800],
-                                      ),
-                                      maxLines: 1,
-                                      minFontSize: 8,
-                                      overflow: TextOverflow.ellipsis,
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Row(
+                                    decoration: BoxDecoration(
+                                      color: paymentPeriod == 'daily'
+                                          ? Colors.blue.withOpacity(0.1)
+                                          : Colors.purple.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: paymentPeriod == 'daily'
+                                            ? Colors.blue.withOpacity(0.3)
+                                            : Colors.purple.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
+                                        Icon(
+                                          periodIcon,
+                                          size: 10,
+                                          color: paymentPeriod == 'daily'
+                                              ? Colors.blue
+                                              : Colors.purple,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          paymentPeriod == 'daily'
+                                              ? 'Diario'
+                                              : 'Mensual',
+                                          style: TextStyle(
                                             color: paymentPeriod == 'daily'
-                                                ? Colors.blue.withOpacity(0.1)
-                                                : Colors.purple
-                                                    .withOpacity(0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                            border: Border.all(
-                                              color: paymentPeriod == 'daily'
-                                                  ? Colors.blue.withOpacity(0.3)
-                                                  : Colors.purple
-                                                      .withOpacity(0.3),
-                                              width: 1,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                periodIcon,
-                                                size: 10,
-                                                color: paymentPeriod == 'daily'
-                                                    ? Colors.blue
-                                                    : Colors.purple,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                paymentPeriod == 'daily'
-                                                    ? 'Diario'
-                                                    : 'Mensual',
-                                                style: TextStyle(
-                                                  color:
-                                                      paymentPeriod == 'daily'
-                                                          ? Colors.blue
-                                                          : Colors.purple,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
+                                                ? Colors.blue
+                                                : Colors.purple,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: status == 'pending'
-                                      ? Colors.orange.withOpacity(0.1)
-                                      : Colors.green.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: status == 'pending'
-                                        ? Colors.orange.withOpacity(0.3)
-                                        : Colors.green.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      statusIcon,
-                                      size: 10,
-                                      color: status == 'pending'
-                                          ? Colors.orange
-                                          : Colors.green,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      status == 'pending'
-                                          ? 'Pendiente'
-                                          : 'Pagado',
-                                      style: TextStyle(
-                                        color: status == 'pending'
-                                            ? Colors.orange
-                                            : Colors.green,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.colorScheme.primary
-                                          .withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Icon(
-                                      Iconsax.money, // Iconsax para dinero
-                                      size: 14,
-                                      color: AppTheme.colorScheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Monto del préstamo',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'S/.${amount.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[800],
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ],
                               ),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppTheme.colorScheme.primary
-                                      .withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: IconButton(
-                                  icon: Icon(
-                                    Iconsax
-                                        .arrow_right_3, // Iconsax en lugar de Material Icons
-                                    size: 14,
-                                    color: AppTheme.colorScheme.primary,
-                                  ),
-                                  onPressed: () =>
-                                      _navigateToLoanDetail(loan, loanId),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
-                                  ),
-                                  padding: const EdgeInsets.all(8),
-                                  splashRadius: 20,
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: status == 'pending'
+                                ? Colors.orange.withOpacity(0.1)
+                                : Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: status == 'pending'
+                                  ? Colors.orange.withOpacity(0.3)
+                                  : Colors.green.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                statusIcon,
+                                size: 10,
+                                color: status == 'pending'
+                                    ? Colors.orange
+                                    : Colors.green,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                status == 'pending' ? 'Pendiente' : 'Pagado',
+                                style: TextStyle(
+                                  color: status == 'pending'
+                                      ? Colors.orange
+                                      : Colors.green,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.colorScheme.primary
+                                    .withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Iconsax.money, // Iconsax para dinero
+                                size: 14,
+                                color: AppTheme.colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Monto del préstamo',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'S/.${amount.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color:
+                                AppTheme.colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              Iconsax
+                                  .arrow_right_3, // Iconsax en lugar de Material Icons
+                              size: 14,
+                              color: AppTheme.colorScheme.primary,
+                            ),
+                            onPressed: () =>
+                                _navigateToLoanDetail(loan, loanId),
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                            padding: const EdgeInsets.all(8),
+                            splashRadius: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

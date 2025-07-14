@@ -3,6 +3,7 @@ import 'package:flutter/scheduler.dart';
 import '../services/supervisor_service.dart';
 import 'package:yatha_app/src/models/gestor.dart';
 import '../services/supervisor_map_service.dart';
+import 'package:intl/intl.dart';
 
 class SupervisorProvider with ChangeNotifier {
   final SupervisorService _service = SupervisorService();
@@ -25,8 +26,6 @@ class SupervisorProvider with ChangeNotifier {
   double _totalToCollect = 0.0;
   double _expectedAmount = 0.0;
   double _efficiencyPercentage = 0.0;
-  double _paymentAmount = 0.0; // Nuevo: monto por cuota
-  bool _isLoadingDailyLoans = false;
   DateTime _selectedDate = DateTime.now();
 
   // Variables para KPIs por rango
@@ -34,6 +33,20 @@ class SupervisorProvider with ChangeNotifier {
   bool _isLoadingRange = false;
   double _rangeEfficiencyPercentage = 0.0;
   double _rangeExpectedAmount = 0.0;
+
+  // --- NUEVO: Pagos pendientes filtrados igual que gestor ---
+  List<Map<String, dynamic>> _gestorPendingPayments = [];
+  List<Map<String, dynamic>> get gestorPendingPayments =>
+      _gestorPendingPayments;
+
+  // --- NUEVO: Estado específico para el mapa del supervisor ---
+  Gestor? _mapSelectedGestor;
+  DateTime _mapSelectedDate = DateTime.now();
+  bool _isLoadingMap = false;
+  String? _mapErrorMessage;
+  List<Map<String, dynamic>> _mapLocations = [];
+  Map<String, dynamic>? _gestorLocation;
+  bool _mapDataLoaded = false;
 
   // Getters
   List<Gestor> get gestores => _gestores;
@@ -50,9 +63,16 @@ class SupervisorProvider with ChangeNotifier {
   double get totalToCollect => _totalToCollect;
   double get expectedAmount => _expectedAmount;
   double get efficiencyPercentage => _efficiencyPercentage;
-  double get paymentAmount => _paymentAmount; // Nuevo getter
-  bool get isLoadingDailyLoans => _isLoadingDailyLoans;
   DateTime get selectedDate => _selectedDate;
+
+  // --- NUEVO: Getters específicos para el mapa ---
+  Gestor? get mapSelectedGestor => _mapSelectedGestor;
+  DateTime get mapSelectedDate => _mapSelectedDate;
+  bool get isLoadingMap => _isLoadingMap;
+  String? get mapErrorMessage => _mapErrorMessage;
+  List<Map<String, dynamic>> get mapLocations => _mapLocations;
+  Map<String, dynamic>? get gestorLocation => _gestorLocation;
+  bool get mapDataLoaded => _mapDataLoaded;
 
   // Totales calculados
   double get totalAmount => _totalToCollect;
@@ -82,6 +102,10 @@ class SupervisorProvider with ChangeNotifier {
     if (total == 0) return 0.0;
     return (onTimePaymentsCount / total) * 100;
   }
+
+  List<Map<String, dynamic>> _gestorPendingPaymentsInRange = [];
+  List<Map<String, dynamic>> get gestorPendingPaymentsInRange =>
+      _gestorPendingPaymentsInRange;
 
   @override
   void dispose() {
@@ -120,6 +144,32 @@ class SupervisorProvider with ChangeNotifier {
   void setSelectedDate(DateTime date) {
     _selectedDate = date;
     loadDailyLoans();
+  }
+
+  // --- NUEVO: Setters específicos para el mapa ---
+  void setMapSelectedGestor(Gestor gestor) {
+    _mapSelectedGestor = gestor;
+    _mapDataLoaded = false; // Resetear estado de datos cargados
+    notifyListeners();
+  }
+
+  void setMapSelectedDate(DateTime date) {
+    _mapSelectedDate = date;
+    _mapDataLoaded = false; // Resetear estado de datos cargados
+    notifyListeners();
+  }
+
+  void clearMapData() {
+    _mapLocations = [];
+    _gestorLocation = null;
+    _mapDataLoaded = false;
+    _mapErrorMessage = null;
+    notifyListeners();
+  }
+
+  void clearMapError() {
+    _mapErrorMessage = null;
+    notifyListeners();
   }
 
   // Métodos para obtener la información formateada
@@ -225,21 +275,13 @@ class SupervisorProvider with ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      print('Cargando ubicaciones para gestor: $gestorId en fecha: $date');
       final locations = await _service.getGestorClientLocations(gestorId, date);
 
       _clientLocations = locations;
       _isLoading = false;
       notifyListeners();
-
-      if (locations.isEmpty) {
-        print('No se encontraron ubicaciones para el gestor');
-      } else {
-        print('Se encontraron ${locations.length} ubicaciones');
-      }
     } catch (e) {
-      print('Error al cargar ubicaciones: $e');
-      _errorMessage = 'Error al cargar las ubicaciones: $e';
+      _errorMessage = 'Error al cargar ubicaciones: $e';
       _isLoading = false;
       _clientLocations = [];
       notifyListeners();
@@ -252,22 +294,13 @@ class SupervisorProvider with ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      print(
-          'Cargando ubicaciones del mapa para gestor: $gestorId en fecha: $date');
       final locations = await _service.getMapLocations(gestorId, date);
 
       _clientLocations = locations;
       _isLoading = false;
       notifyListeners();
-
-      if (locations.isEmpty) {
-        print('No se encontraron ubicaciones en el mapa para el gestor');
-      } else {
-        print('Se encontraron ${locations.length} ubicaciones en el mapa');
-      }
     } catch (e) {
-      print('Error al cargar ubicaciones del mapa: $e');
-      _errorMessage = 'Error al cargar las ubicaciones del mapa: $e';
+      _errorMessage = 'Error al cargar ubicaciones del mapa: $e';
       _isLoading = false;
       _clientLocations = [];
       notifyListeners();
@@ -279,11 +312,23 @@ class SupervisorProvider with ChangeNotifier {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
-      final locations = await _mapService.getPendingClientsForGestorAndDate(
+
+      // Cargar clientes pendientes
+      final clientLocations =
+          await _mapService.getPendingClientsForGestorAndDate(
         gestorId: gestorId,
         date: date,
       );
-      _clientLocations = locations;
+
+      // Cargar ubicación del gestor
+      final gestorLocation = await _mapService.getGestorLocation(gestorId);
+
+      // Combinar clientes y gestor en una sola lista
+      _clientLocations = [...clientLocations];
+      if (gestorLocation != null) {
+        _clientLocations.add(gestorLocation);
+      }
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -291,6 +336,135 @@ class SupervisorProvider with ChangeNotifier {
       _isLoading = false;
       _clientLocations = [];
       notifyListeners();
+    }
+  }
+
+  // --- NUEVO: Método mejorado para cargar datos del mapa ---
+  Future<void> loadMapData() async {
+    if (_mapSelectedGestor == null) {
+      _mapErrorMessage = 'No hay gestor seleccionado';
+      notifyListeners();
+      return;
+    }
+
+    try {
+      _isLoadingMap = true;
+      _mapErrorMessage = null;
+      _mapDataLoaded = false;
+      notifyListeners();
+
+      print(
+          '🔄 Cargando datos del mapa para gestor: ${_mapSelectedGestor!.name}');
+      print(
+          '📅 Fecha seleccionada: ${DateFormat('yyyy-MM-dd').format(_mapSelectedDate)}');
+
+      // Cargar clientes pendientes
+      final clientLocations =
+          await _mapService.getPendingClientsForGestorAndDate(
+        gestorId: _mapSelectedGestor!.id,
+        date: _mapSelectedDate,
+      );
+
+      // Cargar ubicación del gestor
+      final gestorLocation =
+          await _mapService.getGestorLocation(_mapSelectedGestor!.id);
+
+      // Validar y filtrar ubicaciones válidas
+      final validClientLocations = _validateAndFilterLocations(clientLocations);
+
+      // Combinar datos
+      _mapLocations = [...validClientLocations];
+      _gestorLocation = gestorLocation;
+
+      if (gestorLocation != null) {
+        _mapLocations.add(gestorLocation);
+      }
+
+      _mapDataLoaded = true;
+      _isLoadingMap = false;
+
+      print('✅ Datos del mapa cargados exitosamente');
+      print('📍 Total de ubicaciones: ${_mapLocations.length}');
+      print(
+          '👤 Ubicación del gestor: ${gestorLocation != null ? 'Encontrada' : 'No encontrada'}');
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ Error al cargar datos del mapa: $e');
+      _mapErrorMessage = 'Error al cargar datos del mapa: $e';
+      _isLoadingMap = false;
+      _mapDataLoaded = false;
+      _mapLocations = [];
+      _gestorLocation = null;
+      notifyListeners();
+    }
+  }
+
+  // --- NUEVO: Método para validar y filtrar ubicaciones ---
+  List<Map<String, dynamic>> _validateAndFilterLocations(
+      List<Map<String, dynamic>> locations) {
+    return locations.where((location) {
+      final lat = location['latitude'];
+      final lng = location['longitude'];
+
+      // Validar que las coordenadas sean números válidos
+      if (lat == null || lng == null) return false;
+
+      final latDouble = lat is String
+          ? double.tryParse(lat)
+          : (lat is num ? lat.toDouble() : null);
+      final lngDouble = lng is String
+          ? double.tryParse(lng)
+          : (lng is num ? lng.toDouble() : null);
+
+      if (latDouble == null || lngDouble == null) return false;
+
+      // Filtrar coordenadas inválidas (0.0, 0.0 está en el océano)
+      if (latDouble == 0.0 && lngDouble == 0.0) return false;
+
+      // Filtrar coordenadas muy pequeñas que podrían ser errores
+      if (latDouble.abs() < 0.001 || lngDouble.abs() < 0.001) return false;
+
+      // Actualizar las coordenadas como double para consistencia
+      location['latitude'] = latDouble;
+      location['longitude'] = lngDouble;
+
+      return true;
+    }).toList();
+  }
+
+  // --- NUEVO: Método para obtener estadísticas del mapa ---
+  Map<String, dynamic> getMapStatistics() {
+    if (!_mapDataLoaded) {
+      return {
+        'total_locations': 0,
+        'valid_locations': 0,
+        'gestor_location': false,
+        'total_amount': 0.0,
+        'pending_count': 0,
+      };
+    }
+
+    final validLocations =
+        _mapLocations.where((loc) => loc['is_gestor'] != true).toList();
+    final totalAmount = validLocations.fold<double>(
+        0.0, (sum, loc) => sum + (loc['amount'] ?? 0.0));
+    final pendingCount =
+        validLocations.where((loc) => loc['status'] == 'pending').length;
+
+    return {
+      'total_locations': _mapLocations.length,
+      'valid_locations': validLocations.length,
+      'gestor_location': _gestorLocation != null,
+      'total_amount': totalAmount,
+      'pending_count': pendingCount,
+    };
+  }
+
+  // --- NUEVO: Método para recargar datos del mapa ---
+  Future<void> refreshMapData() async {
+    if (_mapSelectedGestor != null) {
+      await loadMapData();
     }
   }
 
@@ -327,11 +501,9 @@ class SupervisorProvider with ChangeNotifier {
         _endDate,
         _selectedGestor!.id, // Pasar el ID del gestor seleccionado
       );
-      print('Respuesta del endpoint: $response');
 
       if (response != null && response['result'] != null) {
         _dailyLoans = List<Map<String, dynamic>>.from(response['result']);
-        print('Préstamos cargados: [32m[1m[4m${_dailyLoans.length}[0m');
 
         if (_dailyLoans.isNotEmpty) {
           // Calcular totales para el gestor seleccionado
@@ -348,11 +520,31 @@ class SupervisorProvider with ChangeNotifier {
           // La eficiencia se calcula como: monto desembolsado / (monto esperado + 20%)
           final double targetAmount = _expectedAmount * 1.2;
           _efficiencyPercentage = _totalDisbursed / targetAmount;
+        } else {
+          // Si no hay préstamos, todos los totales y eficiencia deben ser 0
+          _totalDisbursed = 0.0;
+          _totalInterest = 0.0;
+          _totalToCollect = 0.0;
+          _expectedAmount = 0.0;
+          _efficiencyPercentage = 0.0;
         }
+      } else {
+        // Si la respuesta es nula o vacía, también poner todo en 0
+        _dailyLoans = [];
+        _totalDisbursed = 0.0;
+        _totalInterest = 0.0;
+        _totalToCollect = 0.0;
+        _expectedAmount = 0.0;
+        _efficiencyPercentage = 0.0;
       }
     } catch (e) {
       _errorMessage = 'Error al cargar préstamos: $e';
       _dailyLoans = [];
+      _totalDisbursed = 0.0;
+      _totalInterest = 0.0;
+      _totalToCollect = 0.0;
+      _expectedAmount = 0.0;
+      _efficiencyPercentage = 0.0;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -369,18 +561,8 @@ class SupervisorProvider with ChangeNotifier {
       }
       return [];
     } catch (e) {
-      print('Error al obtener préstamos por IDs: $e');
       return [];
     }
-  }
-
-  void _resetTotals() {
-    _totalDisbursed = 0.0;
-    _totalInterest = 0.0;
-    _totalToCollect = 0.0;
-    _expectedAmount = 0.0;
-    _efficiencyPercentage = 0.0;
-    _paymentAmount = 0.0;
   }
 
   Future<void> loadRangeKpis(DateTime startDate, DateTime endDate) async {
@@ -441,15 +623,13 @@ class SupervisorProvider with ChangeNotifier {
             'Range efficiency percentage: ${_rangeEfficiencyPercentage * 100}%');
         print('On-time payments: ${_rangeKpis['on_time_payments']}');
         print('On-time payments percentage: ${onTimePaymentsPercentage}%');
-      } // No llamar a _resetRangeData() si la respuesta es vacía pero válida
-      else {
+      } else {
         _resetRangeData();
       }
 
       _isLoadingRange = false;
       notifyListeners();
     } catch (e) {
-      print('Error al cargar KPIs por rango: $e');
       _resetRangeData();
       _isLoadingRange = false;
       notifyListeners();
@@ -477,6 +657,144 @@ class SupervisorProvider with ChangeNotifier {
   void notifyListeners() {
     if (!_disposed) {
       super.notifyListeners();
+    }
+  }
+
+  Future<void> fetchGestorPendingPayments(
+      String gestorId, DateTime date) async {
+    try {
+      _isLoading = true;
+      _safeNotifyListeners();
+      final pagos = await _service.getGestorPendingPayments(gestorId, date);
+      _gestorPendingPayments = pagos;
+      _isLoading = false;
+      _safeNotifyListeners();
+    } catch (e) {
+      _gestorPendingPayments = [];
+      _isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+  Future<void> fetchGestorPendingPaymentsInRange(
+      String gestorId, DateTime start, DateTime end) async {
+    try {
+      _isLoading = true;
+      _safeNotifyListeners();
+      final pagos =
+          await _service.getGestorPendingPaymentsInRange(gestorId, start, end);
+      _gestorPendingPaymentsInRange = pagos;
+      _isLoading = false;
+      _safeNotifyListeners();
+    } catch (e) {
+      _gestorPendingPaymentsInRange = [];
+      _isLoading = false;
+      _safeNotifyListeners();
+    }
+  }
+
+  // --- NUEVO: Imprimir pagos pendientes con coordenadas válidas ---
+  Future<void> printPendingPaymentsWithCoordinates(
+      String gestorId, DateTime date) async {
+    // 1. Obtener pagos pendientes con los mismos filtros del KPI
+    final pagos = await _service.getGestorPendingPayments(gestorId, date);
+
+    // 2. Filtrar solo los que tienen coordenadas válidas
+    final pagosConCoordenadas = pagos.where((pago) {
+      final lat = pago['loan_id/partner_latitude'] ?? pago['partner_latitude'];
+      final lng =
+          pago['loan_id/partner_longitude'] ?? pago['partner_longitude'];
+      if (lat == null || lng == null) return false;
+      final latDouble = lat is String
+          ? double.tryParse(lat)
+          : (lat is num ? lat.toDouble() : null);
+      final lngDouble = lng is String
+          ? double.tryParse(lng)
+          : (lng is num ? lng.toDouble() : null);
+      if (latDouble == null || lngDouble == null) return false;
+      if (latDouble == 0.0 && lngDouble == 0.0) return false;
+      if (latDouble.abs() < 0.001 || lngDouble.abs() < 0.001) return false;
+      return true;
+    }).toList();
+
+    // 3. Imprimir en consola la información relevante
+    print(
+        '--- Pagos pendientes con coordenadas válidas para el gestor $gestorId en ${date.toIso8601String().substring(0, 10)} ---');
+    for (final pago in pagosConCoordenadas) {
+      final cliente = pago['loan_id/partner_id'] != null
+          ? pago['loan_id/partner_id'][1]
+          : 'Sin nombre';
+      final monto = pago['payment_amount'] ?? 0.0;
+      final estado = pago['payment_status'] ?? 'pending';
+      final lat = pago['loan_id/partner_latitude'] ?? pago['partner_latitude'];
+      final lng =
+          pago['loan_id/partner_longitude'] ?? pago['partner_longitude'];
+      print(
+          'Cliente: $cliente | Monto: $monto | Estado: $estado | Lat: $lat | Lng: $lng');
+    }
+    print(
+        '--- Total: ${pagosConCoordenadas.length} pagos con coordenadas válidas ---');
+  }
+
+  // --- NUEVO: Cargar clientes pendientes para el mapa del supervisor (TODOS los gestores) ---
+  Future<void> loadMapPendingClientsWithCoordinatesForSupervisor(
+      DateTime date) async {
+    try {
+      _isLoadingMap = true;
+      _mapErrorMessage = null;
+      _mapDataLoaded = false;
+      notifyListeners();
+
+      // 1. Obtener pagos pendientes diarios con coordenadas válidas para la fecha seleccionada (todos los gestores)
+      final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+      final pagos =
+          await _service.getDailyPendingPaymentsWithCoordinatesForSupervisor(
+        mapSelectedGestor?.id ?? '',
+        formattedDate,
+      );
+      print('--- RESPUESTA CRUDA DEL ENDPOINT (pagos diarios supervisor) ---');
+      for (final pago in pagos) {
+        print(pago);
+      }
+      print('--- FIN RESPUESTA CRUDA (pagos diarios supervisor) ---');
+
+      // 2. Filtrar y mapear los datos para el mapa
+      final clientesConCoords = pagos
+          .where((pago) {
+            final lat = pago['latitude'];
+            final lng = pago['longitude'];
+            if (lat == null || lng == null) return false;
+            if (lat == 0.0 && lng == 0.0) return false;
+            if ((lat is num && lat.abs() < 0.001) ||
+                (lng is num && lng.abs() < 0.001)) return false;
+            return true;
+          })
+          .map((pago) => pago)
+          .toList();
+
+      print(
+          'Clientes con coordenadas válidas tras filtrar (supervisor): ${clientesConCoords.length}');
+      if (clientesConCoords.isEmpty) {
+        print(
+            'No hay clientes válidos tras filtrar, no se actualizará mapLocations.');
+        _mapDataLoaded = true;
+        _isLoadingMap = false;
+        notifyListeners();
+        return;
+      }
+
+      _mapLocations = [...clientesConCoords];
+      _gestorLocation = null;
+      _mapDataLoaded = true;
+      _isLoadingMap = false;
+      notifyListeners();
+    } catch (e) {
+      _mapErrorMessage = 'Error al cargar datos del mapa: $e';
+      _isLoadingMap = false;
+      _mapDataLoaded = false;
+      _mapLocations = [];
+      _gestorLocation = null;
+      notifyListeners();
     }
   }
 }

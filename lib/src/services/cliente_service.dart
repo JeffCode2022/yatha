@@ -84,26 +84,33 @@ class ClienteService extends BaseService {
     DateTime? fecha,
   }) async {
     try {
+      final credentials = await _getCredentials();
+      final uid = credentials['uid'];
       final formattedDate = fecha != null
           ? '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}'
           : '';
 
-      // Primero obtenemos los pagos
+      // Primero obtenemos los pagos filtrando por gestor y fecha, sin filtrar por payment_status
       final response = await executeOdooMethod(
         model: 'loan.payment',
         method: 'search_read',
         args: [
           [
             ['payment_date', '=', formattedDate],
-            ['payment_status', '=', 'pending']
+            ['loan_id.partner_salesperson', '=', uid],
           ],
           [
             'id',
             'name',
             'payment_date',
+            'payment_status',
             'payment_amount',
+            'paid_amount',
+            'paid_amount_cash',
+            'paid_amount_transferencia',
             'partner_id',
-            'loan_id', // Agregamos loan_id para obtener el préstamo asociado
+            'loan_id',
+            'payment_met',
           ]
         ],
       );
@@ -115,13 +122,35 @@ class ClienteService extends BaseService {
       final List<Map<String, dynamic>> pagos =
           List<Map<String, dynamic>>.from(response['result'] ?? []);
 
-      // Si no hay pagos, retornamos lista vacía
-      if (pagos.isEmpty) {
+      // Filtrar solo los pagos pendientes (no pagados ni overpaid), con saldo pendiente > 0 y sin duplicados por loan_id
+      final Set<dynamic> processedLoans = {};
+      final pagosPendientes = pagos.where((pago) {
+        final status = (pago['payment_status'] ?? '').toLowerCase();
+        final paymentAmount = (pago['payment_amount'] ?? 0.0) is num
+            ? (pago['payment_amount'] ?? 0.0).toDouble()
+            : double.tryParse(pago['payment_amount']?.toString() ?? '0') ?? 0.0;
+        double paidAmount = 0.0;
+        if (pago['payment_met'] == 'mixto') {
+          paidAmount = (pago['paid_amount_cash'] ?? 0.0).toDouble() +
+              (pago['paid_amount_transferencia'] ?? 0.0).toDouble();
+        } else {
+          paidAmount = (pago['paid_amount'] ?? 0.0).toDouble();
+        }
+        final loanId = pago['loan_id']?[0];
+        final pendiente = (status == 'pending' || status == 'late') &&
+            (paymentAmount - paidAmount) > 0.0 &&
+            loanId != null &&
+            !processedLoans.contains(loanId);
+        if (pendiente) processedLoans.add(loanId);
+        return pendiente;
+      }).toList();
+
+      if (pagosPendientes.isEmpty) {
         return [];
       }
 
       // Obtenemos los IDs de los préstamos
-      final loanIds = pagos
+      final loanIds = pagosPendientes
           .map((pago) => pago['loan_id'][0])
           .where((id) => id != null)
           .toSet()
@@ -135,7 +164,13 @@ class ClienteService extends BaseService {
           [
             ['id', 'in', loanIds]
           ],
-          ['id', 'partner_latitude', 'partner_longitude', 'partner_address']
+          [
+            'id',
+            'partner_latitude',
+            'partner_longitude',
+            'partner_address',
+            'loan_status'
+          ]
         ],
       );
 
@@ -149,36 +184,57 @@ class ClienteService extends BaseService {
         value: (prestamo) => prestamo,
       );
 
-      // Combinamos la información
-      final clientes = pagos.map((pago) {
-        final loanId = pago['loan_id'][0];
-        final prestamo = prestamos[loanId] ?? {};
+      // Obtener préstamos vigentes del usuario para filtrar solo los pagos de préstamos vigentes
+      final prestamosVigentes =
+          await obtenerPrestamos(uid.toString(), formattedDate);
+      final prestamosVigentesIds =
+          prestamosVigentes.map((p) => p['id']).toSet();
 
-        // Obtener y validar el monto
-        var montoRaw = pago['payment_amount'];
-        double monto;
-        if (montoRaw is int) {
-          monto = montoRaw.toDouble();
-        } else if (montoRaw is double) {
-          monto = montoRaw;
-        } else {
-          monto = double.tryParse(montoRaw?.toString() ?? '0') ?? 0.0;
-        }
+      // Combinamos la información y excluimos préstamos refinanciados, renovados o cancelados,
+      // y solo prestamos vigentes
+      final clientes = pagosPendientes
+          .map((pago) {
+            final loanId = pago['loan_id'][0];
+            final prestamo = prestamos[loanId] ?? {};
+            final loanStatus =
+                (prestamo['loan_status'] ?? '').toString().toLowerCase();
+            if (loanStatus == 'refinanced' ||
+                loanStatus == 'renewed' ||
+                loanStatus == 'cancelled') {
+              return null; // Excluir
+            }
+            if (!prestamosVigentesIds.contains(loanId)) {
+              return null; // Excluir si no es préstamo vigente
+            }
 
-        // Redondear a 2 decimales
-        monto = (monto * 100).round() / 100;
+            // Obtener y validar el monto
+            var montoRaw = pago['payment_amount'];
+            double monto;
+            if (montoRaw is int) {
+              monto = montoRaw.toDouble();
+            } else if (montoRaw is double) {
+              monto = montoRaw;
+            } else {
+              monto = double.tryParse(montoRaw?.toString() ?? '0') ?? 0.0;
+            }
 
-        return {
-          'id': pago['id'],
-          'name': pago['name'],
-          'payment_date': pago['payment_date'],
-          'partner_id': pago['partner_id'],
-          'amount': monto,
-          'partner_latitude': prestamo['partner_latitude'] ?? 0.0,
-          'partner_longitude': prestamo['partner_longitude'] ?? 0.0,
-          'partner_address': prestamo['partner_address'],
-        };
-      }).toList();
+            // Redondear a 2 decimales
+            monto = (monto * 100).round() / 100;
+
+            return {
+              'id': pago['id'],
+              'name': pago['name'],
+              'payment_date': pago['payment_date'],
+              'partner_id': pago['partner_id'],
+              'amount': monto,
+              'partner_latitude': prestamo['partner_latitude'] ?? 0.0,
+              'partner_longitude': prestamo['partner_longitude'] ?? 0.0,
+              'partner_address': prestamo['partner_address'],
+            };
+          })
+          .where((cliente) => cliente != null)
+          .cast<Map<String, dynamic>>()
+          .toList();
 
       return clientes;
     } catch (e) {

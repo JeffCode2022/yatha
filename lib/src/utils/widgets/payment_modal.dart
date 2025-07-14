@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../../services/api_service.dart';
 import '../../models/loan.dart';
 import '../../utils/logger.dart';
+import 'package:lottie/lottie.dart';
 
 class PaymentModal extends StatefulWidget {
   final dynamic payment;
@@ -789,15 +790,11 @@ class _PaymentModalState extends State<PaymentModal> {
                           foregroundColor: Colors.white,
                         ),
                         label: _isProcessing
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
+                                child: Lottie.asset(
+                                    'assets/animations/loading.json'),
                               )
                             : Text(isPaymentBlocked
                                 ? 'Pago Completado'

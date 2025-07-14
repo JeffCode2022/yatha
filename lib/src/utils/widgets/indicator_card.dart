@@ -47,7 +47,7 @@ class IndicatorCard extends StatelessWidget {
             Text(
               value,
               style: const TextStyle(
-                fontSize: 22,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
                 letterSpacing: 1.1,
@@ -57,7 +57,7 @@ class IndicatorCard extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,

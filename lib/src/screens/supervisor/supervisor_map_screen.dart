@@ -9,8 +9,8 @@ import 'dart:math' as math;
 import '../../utils/theme/app_theme.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/rendering.dart';
 import 'dart:ui';
+import 'package:lottie/lottie.dart' as lottie;
 
 // Cliente HTTP global persistente para toda la aplicación
 final http.Client _globalHttpClient = http.Client();
@@ -124,6 +124,20 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Escuchar cambios en los datos del mapa para centrar automáticamente
+    final supervisorProvider = Provider.of<SupervisorProvider>(context);
+    if (supervisorProvider.mapDataLoaded &&
+        supervisorProvider.mapLocations.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _centerMapOnLocations(supervisorProvider.mapLocations);
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _animationController.dispose();
     // NO cerramos el cliente HTTP global aquí
@@ -134,30 +148,39 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     final supervisorProvider =
         Provider.of<SupervisorProvider>(context, listen: false);
     await supervisorProvider.loadGestores();
-  }
 
-  Future<void> _loadMapData() async {
-    final supervisorProvider =
-        Provider.of<SupervisorProvider>(context, listen: false);
-    if (supervisorProvider.selectedGestor != null) {
-      await supervisorProvider.loadMapPendingClients(
-        supervisorProvider.selectedGestor!.id,
-        _selectedDate,
-      );
-      if (supervisorProvider.clientLocations.isNotEmpty) {
-        _centerMapOnLocations(supervisorProvider.clientLocations);
-      }
-
-      if (mounted) {
-        setState(() {
-          _isMapReady = true;
-        });
-      }
+    // Inicializar el gestor del mapa con el primero de la lista si está vacío
+    if (supervisorProvider.gestores.isNotEmpty &&
+        supervisorProvider.mapSelectedGestor == null) {
+      supervisorProvider
+          .setMapSelectedGestor(supervisorProvider.gestores.first);
     }
+
+    // Para el supervisor, cargar TODOS los pagos pendientes diarios con coordenadas válidas
+    await supervisorProvider.loadMapPendingClientsWithCoordinatesForSupervisor(
+      supervisorProvider.mapSelectedDate,
+    );
   }
 
   void _centerMapOnLocations(List<Map<String, dynamic>> locations) {
     if (locations.isEmpty) return;
+
+    // Filtrar solo ubicaciones con coordenadas válidas
+    final validLocations = locations.where((location) {
+      final lat = location['latitude'] is String
+          ? double.tryParse(location['latitude']) ?? 0.0
+          : (location['latitude'] ?? 0.0);
+      final lng = location['longitude'] is String
+          ? double.tryParse(location['longitude']) ?? 0.0
+          : (location['longitude'] ?? 0.0);
+
+      return lat != 0.0 && lng != 0.0 && lat.abs() > 0.001 && lng.abs() > 0.001;
+    }).toList();
+
+    if (validLocations.isEmpty) {
+      print('No hay ubicaciones válidas para centrar el mapa');
+      return;
+    }
 
     double sumLat = 0;
     double sumLng = 0;
@@ -166,9 +189,13 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     double minLng = double.infinity;
     double maxLng = -double.infinity;
 
-    for (final location in locations) {
-      final lat = location['latitude'] as double;
-      final lng = location['longitude'] as double;
+    for (final location in validLocations) {
+      final lat = location['latitude'] is String
+          ? double.tryParse(location['latitude']) ?? 0.0
+          : (location['latitude'] ?? 0.0);
+      final lng = location['longitude'] is String
+          ? double.tryParse(location['longitude']) ?? 0.0
+          : (location['longitude'] ?? 0.0);
 
       sumLat += lat;
       sumLng += lng;
@@ -179,8 +206,8 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
       maxLng = math.max(maxLng, lng);
     }
 
-    final centerLat = sumLat / locations.length;
-    final centerLng = sumLng / locations.length;
+    final centerLat = sumLat / validLocations.length;
+    final centerLng = sumLng / validLocations.length;
 
     final latSpan = maxLat - minLat;
     final lngSpan = maxLng - minLng;
@@ -191,6 +218,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     if (maxSpan > 0.5) zoom = 11.0;
     if (maxSpan > 1.0) zoom = 10.0;
 
+    print('Centrando mapa en: ($centerLat, $centerLng) con zoom: $zoom');
     _mapController.move(LatLng(centerLat, centerLng), zoom);
   }
 
@@ -199,7 +227,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
     required Widget child,
     double borderRadius = 16,
     Color borderColor = Colors.white30,
-    double blurAmount = 10.0,
+    double blurAmount = 4.0,
     EdgeInsetsGeometry padding = const EdgeInsets.all(16),
     Color? backgroundColor,
   }) {
@@ -213,7 +241,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: backgroundColor ?? Colors.white.withOpacity(0.7),
+              color: backgroundColor ?? Colors.white.withOpacity(0.92),
               borderRadius: BorderRadius.circular(borderRadius),
               border: Border.all(color: borderColor, width: 1.5),
               boxShadow: [
@@ -227,8 +255,8 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
+                  Colors.white.withOpacity(0.95),
                   Colors.white.withOpacity(0.8),
-                  Colors.white.withOpacity(0.5),
                 ],
               ),
             ),
@@ -279,27 +307,103 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
                     child: _buildMapLegend(),
                   ),
                 ),
+
+                // Mensaje de error del mapa (si existe)
+                if (supervisorProvider.mapErrorMessage != null)
+                  Positioned(
+                    top: 100,
+                    left: 16,
+                    right: 16,
+                    child: _buildGlassmorphicCard(
+                      borderRadius: 12,
+                      blurAmount: 8.0,
+                      backgroundColor: Colors.red.withOpacity(0.8),
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Icon(Iconsax.danger, size: 16, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              supervisorProvider.mapErrorMessage!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              supervisorProvider.clearMapError();
+                            },
+                            icon: Icon(Iconsax.close_circle,
+                                size: 16, color: Colors.white),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Botones de zoom y refrescar
+                Positioned(
+                  bottom: 24,
+                  right: 16,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FloatingActionButton(
+                        heroTag: 'zoom_in',
+                        onPressed: () {
+                          final currentZoom = _mapController.camera.zoom;
+                          _mapController.move(
+                              _mapController.camera.center, currentZoom + 1);
+                        },
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.zoom_in,
+                            color: AppTheme.colorScheme.primary, size: 22),
+                        tooltip: 'Acercar',
+                        mini: true,
+                      ),
+                      const SizedBox(height: 8),
+                      FloatingActionButton(
+                        heroTag: 'zoom_out',
+                        onPressed: () {
+                          final currentZoom = _mapController.camera.zoom;
+                          _mapController.move(
+                              _mapController.camera.center, currentZoom - 1);
+                        },
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.zoom_out,
+                            color: AppTheme.colorScheme.primary, size: 22),
+                        tooltip: 'Alejar',
+                        mini: true,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          floatingActionButton: _mapLoadError
-              ? FloatingActionButton.small(
-                  onPressed: _checkConnectivityAndSwitchTileProvider,
-                  backgroundColor: AppTheme.colorScheme.primary,
-                  child: Icon(Iconsax.refresh, size: 20),
-                )
-              : null,
         );
       },
     );
   }
 
   Widget _buildMapSection(SupervisorProvider supervisorProvider) {
-    if (supervisorProvider.isLoading) {
+    print(
+        '🗺️ _buildMapSection() - Gestor del mapa: ${supervisorProvider.mapSelectedGestor?.name} (ID: ${supervisorProvider.mapSelectedGestor?.id})');
+    print(
+        '🗺️ _buildMapSection() - isLoadingMap: ${supervisorProvider.isLoadingMap}');
+    print(
+        '🗺️ _buildMapSection() - mapLocations: ${supervisorProvider.mapLocations.length}');
+
+    if (supervisorProvider.isLoadingMap) {
       return _buildLoadingState();
     }
 
-    if (supervisorProvider.selectedGestor == null) {
+    if (supervisorProvider.mapSelectedGestor == null) {
       return _buildEmptyState();
     }
 
@@ -352,7 +456,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
               },
             ),
             MarkerLayer(
-              markers: _buildMarkers(supervisorProvider.clientLocations),
+              markers: _buildMarkers(supervisorProvider.mapLocations),
             ),
           ],
         ),
@@ -383,8 +487,8 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
               ),
             ),
           ),
-        if (supervisorProvider.clientLocations.isEmpty &&
-            !supervisorProvider.isLoading &&
+        if (supervisorProvider.mapLocations.isEmpty &&
+            !supervisorProvider.isLoadingMap &&
             _isMapReady)
           _buildNoLocationsOverlay(),
       ],
@@ -444,16 +548,42 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
       setState(() {
         _selectedDate = picked;
       });
-      await _loadMapData();
+
+      // Actualizar la fecha en el provider y recargar datos
+      final supervisorProvider =
+          Provider.of<SupervisorProvider>(context, listen: false);
+      supervisorProvider.setMapSelectedDate(picked);
+      await supervisorProvider
+          .loadMapPendingClientsWithCoordinatesForSupervisor(
+        picked,
+      );
     }
   }
 
   List<Marker> _buildMarkers(List<Map<String, dynamic>> locations) {
     print('Marcadores a mostrar:');
-    for (var loc in locations) {
+
+    // Filtrar solo ubicaciones con coordenadas válidas
+    final validLocations = locations.where((location) {
+      final lat = location['latitude'] is String
+          ? double.tryParse(location['latitude']) ?? 0.0
+          : (location['latitude'] ?? 0.0);
+      final lng = location['longitude'] is String
+          ? double.tryParse(location['longitude']) ?? 0.0
+          : (location['longitude'] ?? 0.0);
+
+      // Filtrar coordenadas inválidas (0.0, 0.0 está en el océano)
+      return lat != 0.0 && lng != 0.0 && lat.abs() > 0.001 && lng.abs() > 0.001;
+    }).toList();
+
+    print(
+        'Ubicaciones válidas: ${validLocations.length} de ${locations.length}');
+
+    for (var loc in validLocations) {
       print(' - $loc');
     }
-    return locations.map((location) {
+
+    return validLocations.map((location) {
       final lat = location['latitude'] is String
           ? double.tryParse(location['latitude']) ?? 0.0
           : (location['latitude'] ?? 0.0);
@@ -464,78 +594,70 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
       final amount = location['amount'] as double?;
       final status = location['status'] as String?;
       final isGestor = location['is_gestor'] as bool?;
+      final address = location['address'] as String?;
+      final loanId = location['loan_id'] as String?;
 
       return Marker(
         point: LatLng(lat, lng),
-        width: 120,
-        height: 70,
-        child: _buildEnhancedMarker(
-          title: isGestor == true
-              ? 'Gestor'
-              : 'S/ [36m${amount?.toStringAsFixed(2) ?? '0.00'}',
-          icon: isGestor == true ? Iconsax.user_tick : Iconsax.location,
-          color: isGestor == true
-              ? AppTheme.colorScheme.primary
-              : _getStatusColor(status),
+        width: 28,
+        height: 44,
+        child: GestureDetector(
           onTap: () {
-            _showLocationDetails(clientName, amount, status, isGestor);
+            _showLocationDetails(clientName, amount, status, isGestor, address,
+                lat, lng, loanId);
           },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Círculo con punto (negro con punto blanco)
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+              // Línea vertical verde
+              Container(
+                width: 2,
+                height: 16,
+                color: Colors.green,
+              ),
+            ],
+          ),
         ),
       );
     }).toList();
   }
 
-  Widget _buildEnhancedMarker({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildGlassmorphicCard(
-            borderRadius: 8,
-            blurAmount: 5.0,
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.3),
-                  blurRadius: 6,
-                  spreadRadius: 0,
-                ),
-              ],
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showLocationDetails(
-      String? name, double? amount, String? status, bool? isGestor) {
+      String? name,
+      double? amount,
+      String? status,
+      bool? isGestor,
+      String? address,
+      double? lat,
+      double? lng,
+      String? loanId) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -558,28 +680,32 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      isGestor == true
-                          ? 'Detalle del Gestor'
-                          : 'Detalle del Cliente',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        name ?? 'No disponible',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                _buildDetailRow(
-                  isGestor == true ? 'Gestor:' : 'Cliente:',
-                  name ?? 'No disponible',
-                  isGestor == true ? Iconsax.user_tick : Iconsax.profile_circle,
-                ),
-                if (isGestor != true) ...[
+                if (loanId != null && loanId.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildDetailRow(
+                    'ID Préstamo:',
+                    loanId,
+                    Iconsax.document,
+                  ),
+                ],
+                if (isGestor != true && amount != null) ...[
                   const SizedBox(height: 12),
                   _buildDetailRow(
                     'Monto:',
-                    'S/ ${amount?.toStringAsFixed(2) ?? '0.00'}',
+                    'S/ ${amount.toStringAsFixed(2)}',
                     Iconsax.money,
                   ),
                   const SizedBox(height: 12),
@@ -750,7 +876,7 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
                               color: Colors.grey[600],
                             ),
                           ),
-                          value: supervisorProvider.selectedGestor?.id,
+                          value: supervisorProvider.mapSelectedGestor?.id,
                           items: supervisorProvider.gestores.map((gestor) {
                             return DropdownMenuItem<String>(
                               value: gestor.id,
@@ -763,13 +889,23 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
                               ),
                             );
                           }).toList(),
-                          onChanged: (String? newValue) {
+                          onChanged: (String? newValue) async {
+                            print(
+                                '🔄 Dropdown onChanged llamado con valor: $newValue');
                             if (newValue != null) {
                               final selectedGestor = supervisorProvider.gestores
                                   .firstWhere((g) => g.id == newValue);
+                              print(
+                                  '👤 Gestor seleccionado: ${selectedGestor.name} (ID: ${selectedGestor.id})');
+
                               supervisorProvider
-                                  .setSelectedGestor(selectedGestor);
-                              _loadMapData();
+                                  .setMapSelectedGestor(selectedGestor);
+                              print(
+                                  '✅ mapSelectedGestor actualizado, llamando a loadMapPendingClientsWithCoordinatesForSupervisor()');
+                              await supervisorProvider
+                                  .loadMapPendingClientsWithCoordinatesForSupervisor(
+                                supervisorProvider.mapSelectedDate,
+                              );
                             }
                           },
                           hint: Text(
@@ -844,36 +980,48 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
           ],
         ),
         const SizedBox(height: 8),
-        _buildLegendItem('Cliente Pendiente', Colors.red),
-        const SizedBox(height: 4),
-        _buildLegendItem('Gestor', AppTheme.colorScheme.primary),
-      ],
-    );
-  }
-
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            label == 'Gestor' ? Iconsax.user_tick : Iconsax.location,
-            color: color,
-            size: 12,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[700],
-          ),
+        Row(
+          children: [
+            // Nuevo icono igual al marcador de cliente
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 2,
+                  height: 10,
+                  color: Colors.green,
+                ),
+              ],
+            ),
+            const SizedBox(width: 8),
+            const Text('Cliente Pendiente', style: TextStyle(fontSize: 12)),
+          ],
         ),
       ],
     );
@@ -887,29 +1035,19 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 40,
-              height: 40,
-              child: CircularProgressIndicator(
-                color: AppTheme.colorScheme.primary,
-                strokeWidth: 3,
-              ),
+              width: 60,
+              height: 60,
+              child: lottie.Lottie.asset('assets/animations/loading.json'),
             ),
             const SizedBox(height: 16),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Iconsax.timer,
-                  size: 16,
-                  color: Colors.grey[700],
-                ),
-                const SizedBox(width: 8),
-                Text(
+                const Text(
                   'Cargando mapa...',
                   style: TextStyle(
-                    fontSize: 14,
+                    color: Colors.black87,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
                   ),
                 ),
               ],
@@ -965,6 +1103,41 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
   }
 
   Widget _buildNoLocationsOverlay() {
+    final supervisorProvider =
+        Provider.of<SupervisorProvider>(context, listen: false);
+    final statistics = supervisorProvider.getMapStatistics();
+
+    final totalLocations = statistics['total_locations'] as int;
+    final validLocations = statistics['valid_locations'] as int;
+    final gestorLocation = statistics['gestor_location'] as bool;
+    final totalAmount = statistics['total_amount'] as double;
+    final pendingCount = statistics['pending_count'] as int;
+
+    String title;
+    String message;
+    IconData icon;
+    Color iconColor;
+
+    if (totalLocations == 0) {
+      title = 'No hay clientes pendientes';
+      message =
+          'No se encontraron clientes pendientes para este gestor en la fecha seleccionada';
+      icon = Iconsax.location_slash;
+      iconColor = Colors.grey[400]!;
+    } else if (validLocations == 0) {
+      title = 'Sin coordenadas válidas';
+      message =
+          'Se encontraron $totalLocations clientes pero ninguno tiene coordenadas válidas para mostrar en el mapa';
+      icon = Iconsax.location_cross;
+      iconColor = Colors.orange[400]!;
+    } else {
+      title = 'Ubicaciones disponibles';
+      message =
+          'Se muestran $validLocations de $totalLocations clientes con coordenadas válidas';
+      icon = Iconsax.location;
+      iconColor = Colors.green[400]!;
+    }
+
     return Center(
       child: _buildGlassmorphicCard(
         borderRadius: 16,
@@ -973,13 +1146,13 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Iconsax.location_slash,
+              icon,
               size: 32,
-              color: Colors.grey[400],
+              color: iconColor,
             ),
             const SizedBox(height: 12),
             Text(
-              'No hay ubicaciones disponibles',
+              title,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -988,16 +1161,92 @@ class _SupervisorMapScreenState extends State<SupervisorMapScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'No se encontraron ubicaciones de clientes para este gestor en la fecha seleccionada',
+              message,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],
               ),
             ),
+            if (totalLocations > 0 && validLocations > 0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Column(
+                  children: [
+                    _buildStatRow('Total a cobrar:',
+                        'S/ ${totalAmount.toStringAsFixed(2)}'),
+                    const SizedBox(height: 4),
+                    _buildStatRow(
+                        'Clientes pendientes:', pendingCount.toString()),
+                    if (gestorLocation) ...[
+                      const SizedBox(height: 4),
+                      _buildStatRow('Gestor:', 'Ubicación disponible'),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+            if (totalLocations > 0 && validLocations == 0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Iconsax.info_circle,
+                        size: 16, color: Colors.orange[700]),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Los clientes sin coordenadas no se muestran',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.orange[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[800],
+          ),
+        ),
+      ],
     );
   }
 }

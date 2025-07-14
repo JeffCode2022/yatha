@@ -10,6 +10,7 @@ import '../../utils/theme/app_theme.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'dart:ui';
 import '../../utils/widgets/indicator_card.dart';
+import 'package:lottie/lottie.dart';
 
 class SupervisorKpiScreen extends StatefulWidget {
   const SupervisorKpiScreen({Key? key}) : super(key: key);
@@ -27,6 +28,10 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   bool _isLoading = false;
+  // Estado para expansión de préstamos
+  Set<int> _expandedLoans = {};
+  // Estado para mostrar todos los préstamos o solo los primeros 2
+  bool _showAllLoans = false;
 
   @override
   void initState() {
@@ -47,6 +52,8 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
     });
+
+    _loadPendingPayments();
   }
 
   @override
@@ -81,175 +88,19 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     }
   }
 
-  Widget _buildKpiCard(String title, String value, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.grey[800],
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+  void _loadPendingPayments() {
+    final supervisorProvider =
+        Provider.of<SupervisorProvider>(context, listen: false);
+    final gestorId = supervisorProvider.selectedGestor?.id?.toString();
+    if (gestorId != null) {
+      supervisorProvider.fetchGestorPendingPaymentsInRange(
+          gestorId, _startDate, _endDate);
+    }
   }
 
-  Widget _buildEfficiencyBar(double efficiency) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            spreadRadius: 0,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppTheme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Iconsax.chart, // Iconsax para insights
-                  color: AppTheme.colorScheme.primary,
-                  size: 14,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Eficiencia del Periodo',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getEfficiencyColor(efficiency).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: _getEfficiencyColor(efficiency).withOpacity(0.3),
-                  ),
-                ),
-                child: Text(
-                  '${(efficiency * 100).toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: _getEfficiencyColor(efficiency),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: efficiency,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  _getEfficiencyColor(efficiency)),
-              minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildEfficiencyLabel('Bajo', Colors.red),
-              _buildEfficiencyLabel('Medio', Colors.orange),
-              _buildEfficiencyLabel('Alto', Colors.green),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEfficiencyLabel(String label, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Color _getEfficiencyColor(double efficiency) {
-    if (efficiency >= 0.8) return Colors.green;
-    if (efficiency >= 0.6) return Colors.orange;
-    return Colors.red;
+  // Llamar a _loadPendingPayments cuando cambie el gestor o la fecha
+  void _onDateOrGestorChanged() {
+    _loadPendingPayments();
   }
 
   @override
@@ -296,17 +147,16 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const CircularProgressIndicator(),
+                          SizedBox(
+                            width: 120,
+                            height: 120,
+                            child:
+                                Lottie.asset('assets/animations/loading.json'),
+                          ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Iconsax.timer, // Iconsax para cargando
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 8),
                               const Text(
                                 'Cargando datos...',
                                 style: TextStyle(
@@ -575,36 +425,72 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
   Widget _buildDateRangeIndicators(SupervisorProvider supervisorProvider) {
     // Igual que el gestor: filtrar préstamos renovados/refinanciados/cancelados y usar los mismos campos que el servicio
     final paymentsRaw = supervisorProvider.rangeKpis['payments'] ?? [];
-    final payments = paymentsRaw.where((p) {
-      final loanStatus = p['loan_status']?.toString() ?? '';
-      return loanStatus != 'refinanced' &&
-          loanStatus != 'renewed' &&
-          loanStatus != 'cancelled';
-    }).toList();
+
+    // Detectar si es una fecha específica o un rango
+    final isSingleDate = _startDate.isAtSameMomentAs(_endDate);
+
+    List<dynamic> payments;
+
+    if (isSingleDate) {
+      // Si es una fecha específica, usar la misma lógica que el gestor
+      final selectedDateStr = DateFormat('yyyy-MM-dd').format(_startDate);
+
+      payments = paymentsRaw.where((p) {
+        final loanStatus = p['loan_status']?.toString() ?? '';
+        final paymentDate = p['payment_date']?.toString().substring(0, 10);
+
+        // Filtrar por préstamos vigentes y fecha específica (igual que gestor)
+        return loanStatus != 'refinanced' &&
+            loanStatus != 'renewed' &&
+            loanStatus != 'cancelled' &&
+            paymentDate == selectedDateStr;
+      }).toList();
+    } else {
+      // Si es un rango de fechas, usar la lógica del supervisor
+      payments = paymentsRaw.where((p) {
+        final loanStatus = p['loan_status']?.toString() ?? '';
+
+        // Solo filtrar por préstamos vigentes
+        return loanStatus != 'refinanced' &&
+            loanStatus != 'renewed' &&
+            loanStatus != 'cancelled';
+      }).toList();
+    }
 
     // Meta (total esperado)
     final totalDue = payments.fold<double>(
         0.0, (double sum, dynamic p) => sum + (p['payment_amount'] ?? 0.0));
 
-    // Total recaudado
+    // Total recaudado: solo pagos realizados, solución temporal si paid_amount es 0
     final totalCollected = payments.fold<double>(
-        0.0, (double sum, dynamic p) => sum + (p['paid_amount'] ?? 0.0));
+      0.0,
+      (double sum, dynamic p) {
+        final status = p['payment_status']?.toString() ?? 'pending';
+        if (status == 'paid' || status == 'overpaid' || status == 'partial') {
+          double monto = (p['paid_amount'] ?? 0.0) as double;
+          if ((monto == 0.0 || monto == null)) {
+            // Si es mixto, sumar ambos campos
+            if (p['payment_met'] == 'mixto') {
+              monto = (p['paid_amount_cash'] ?? 0.0) +
+                  (p['paid_amount_transferencia'] ?? 0.0);
+            } else {
+              monto = (p['payment_amount'] ?? 0.0) as double;
+            }
+          }
+          return sum + monto;
+        }
+        return sum;
+      },
+    );
 
     // Porcentaje de avance (progress_percentage)
     final progressPercentage =
         totalDue > 0 ? (totalCollected / totalDue) * 100 : 0.0;
 
-    // Contadores de pagos (igual que gestor)
-    int completedCount = 0;
-    int pendingCount = 0;
-    for (var p in payments) {
-      final status = p['payment_status']?.toString() ?? 'pending';
-      if (status == 'paid' || status == 'overpaid' || status == 'partial') {
-        completedCount++;
-      } else if (status == 'pending') {
-        pendingCount++;
-      }
-    }
+    // Calcular pendientes usando la misma lógica que cliente_service.dart
+    int pendingCount =
+        _calcularPendientesComoGestor(payments, supervisorProvider);
+    int completedCount = _calcularCompletados(payments);
 
     final currencyFormat = NumberFormat.currency(
       symbol: 'S/',
@@ -722,7 +608,8 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
           children: [
             IndicatorCard(
               label: 'Pendientes',
-              value: pendingCount.toString(),
+              value: _contarClientesPendientesUnicos(supervisorProvider)
+                  .toString(),
               color: const Color(0xFFFF6D00),
               icon: Iconsax.timer,
               onTap: () =>
@@ -776,6 +663,11 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     );
 
     final payments = supervisorProvider.rangeKpis['payments'] ?? [];
+    final loans = supervisorProvider.dailyLoans;
+
+    // Mostrar solo los primeros 2 préstamos por defecto
+    final visibleLoans =
+        (_showAllLoans || loans.length <= 2) ? loans : loans.sublist(0, 2);
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -795,6 +687,7 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Barra de eficiencia y totales
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -880,25 +773,49 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
           ),
           const SizedBox(height: 24),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                Iconsax.document_text, // Iconsax para documentos
-                size: 16,
-                color: Colors.grey[800],
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Detalle de Préstamos',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
+              Row(
+                children: [
+                  Icon(
+                    Iconsax.document_text, // Iconsax para documentos
+                    size: 16,
+                    color: Colors.grey[800],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Detalle de Préstamos',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  if (loans.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '(${loans.length})',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
           const SizedBox(height: 12),
-          if (supervisorProvider.dailyLoans.isEmpty)
+          if (loans.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -921,233 +838,198 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
                 ),
               ),
             )
-          else
+          else ...[
             ListView.builder(
+              key: ValueKey(
+                  'loansList_${_showAllLoans}_${loans.length}_${_expandedLoans.length}'),
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: supervisorProvider.dailyLoans.length,
+              itemCount: visibleLoans.length,
               itemBuilder: (context, index) {
-                final loan = supervisorProvider.dailyLoans[index];
-                final loanId = loan['id'];
+                final loan = visibleLoans[index];
+                final loanId = loan['id'] as int;
                 final totalPagado =
                     _calcularTotalPagadoPorPrestamo(loanId, payments);
                 final saldoActual = loan['current_due'] ?? 0.0;
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(color: Colors.grey[200]!),
-                  ),
-                  child: Stack(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(
-                            top: 8, right: 8, left: 8, bottom: 8),
-                        child: ExpansionTile(
-                          title: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  AutoSizeText(
-                                    loan['name'] ?? 'Sin código',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
+                return Stack(
+                  children: [
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: Colors.grey[200]!),
+                      ),
+                      child: ExpansionTile(
+                        key: ValueKey(loanId),
+                        initiallyExpanded: _expandedLoans.contains(loanId),
+                        onExpansionChanged: (expanded) {
+                          setState(() {
+                            if (expanded) {
+                              _expandedLoans.add(loanId);
+                            } else {
+                              _expandedLoans.remove(loanId);
+                            }
+                          });
+                        },
+                        title: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                AutoSizeText(
+                                  loan['name'] ?? 'Sin código',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: Colors.black87,
+                                  ),
+                                  maxLines: 1,
+                                  minFontSize: 10,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(width: 8),
+                                AutoSizeText(
+                                  currencyFormat
+                                      .format(loan['loan_amount'] ?? 0),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: Colors.black87,
+                                  ),
+                                  maxLines: 1,
+                                  minFontSize: 10,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Iconsax
+                                      .profile_circle, // Iconsax para cliente
+                                  size: 12,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    loan['partner_id'] != null
+                                        ? loan['partner_id'][1]
+                                        : 'Cliente sin nombre',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
                                       fontSize: 12,
-                                      color: Colors.black87,
                                     ),
-                                    maxLines: 1,
-                                    minFontSize: 10,
                                     overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  AutoSizeText(
-                                    currencyFormat
-                                        .format(loan['loan_amount'] ?? 0),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                      color: Colors.black87,
-                                    ),
                                     maxLines: 1,
-                                    minFontSize: 10,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  Container(
-                                    margin: const EdgeInsets.only(left: 6),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.transparent,
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Iconsax.calendar, // Iconsax para fecha
+                                      size: 12,
+                                      color: Colors.grey[600],
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Iconsax
-                                        .profile_circle, // Iconsax para cliente
-                                    size: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      loan['partner_id'] != null
-                                          ? loan['partner_id'][1]
-                                          : 'Cliente sin nombre',
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      loan['create_date'] != null
+                                          ? 'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(loan['create_date']))}'
+                                          : 'Fecha: No disponible',
                                       style: TextStyle(
                                         color: Colors.grey[600],
                                         fontSize: 12,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
                                     ),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Iconsax.calendar, // Iconsax para fecha
-                                        size: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        loan['create_date'] != null
-                                            ? 'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(loan['create_date']))}'
-                                            : 'Fecha: No disponible',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  _buildLoanDetailRow(
-                                    'Monto del Préstamo',
-                                    currencyFormat
-                                        .format(loan['loan_amount'] ?? 0),
-                                    icon: Iconsax.money, // Iconsax para monto
-                                  ),
-                                  const SizedBox(height: 4),
-                                  _buildLoanDetailRow(
-                                    'Interés',
-                                    currencyFormat.format(loan['profit'] ?? 0),
-                                    icon: Iconsax
-                                        .money_recive, // Iconsax para interés
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildLoanDetailRow(
-                                    'Total a Pagar',
-                                    currencyFormat
-                                        .format(loan['total_amount'] ?? 0),
-                                    isTotal: true,
-                                    icon:
-                                        Iconsax.money_add, // Iconsax para total
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildLoanDetailRow(
-                                    'Total Pagado',
-                                    currencyFormat.format(
-                                        (loan['total_amount'] ?? 0) -
-                                            (loan['current_due'] ?? 0)),
-                                    icon: Iconsax
-                                        .money_tick, // Iconsax para pagado
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildLoanDetailRow(
-                                    'Saldo actual',
-                                    currencyFormat.format(saldoActual),
-                                    isTotal: true,
-                                    isOverdue: true,
-                                    icon: Iconsax
-                                        .money_time, // Iconsax para saldo
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ),
-                      // Badge glassmorphic encima de todo
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                            child: Builder(
-                              builder: (context) {
-                                final status = loan['loan_status'] ?? 'pending';
-                                final color = getLoanStatusColor(status);
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: color.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                        color: color.withOpacity(0.7),
-                                        width: 1),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: color.withOpacity(0.10),
-                                        blurRadius: 4,
-                                        spreadRadius: 0,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        getLoanStatusIcon(status),
-                                        size: 12,
-                                        color: Colors.white,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        getLoanStatusLabel(status),
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 11,
-                                          letterSpacing: 0.1,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                _buildLoanDetailRow(
+                                  'Monto del Préstamo',
+                                  currencyFormat
+                                      .format(loan['loan_amount'] ?? 0),
+                                  icon: Iconsax.money, // Iconsax para monto
+                                ),
+                                const SizedBox(height: 4),
+                                _buildLoanDetailRow(
+                                  'Interés',
+                                  currencyFormat.format(loan['profit'] ?? 0),
+                                  icon: Iconsax
+                                      .money_recive, // Iconsax para interés
+                                ),
+                                const SizedBox(height: 8),
+                                _buildLoanDetailRow(
+                                  'Total a Pagar',
+                                  currencyFormat
+                                      .format(loan['total_amount'] ?? 0),
+                                  isTotal: true,
+                                  icon: Iconsax.money_add, // Iconsax para total
+                                ),
+                                const SizedBox(height: 8),
+                                _buildLoanDetailRow(
+                                  'Total Pagado',
+                                  currencyFormat.format(
+                                      (loan['total_amount'] ?? 0) -
+                                          (loan['current_due'] ?? 0)),
+                                  icon:
+                                      Iconsax.money_tick, // Iconsax para pagado
+                                ),
+                                const SizedBox(height: 8),
+                                _buildLoanDetailRow(
+                                  'Saldo actual',
+                                  currencyFormat.format(saldoActual),
+                                  isTotal: true,
+                                  isOverdue: true,
+                                  icon:
+                                      Iconsax.money_time, // Iconsax para saldo
+                                ),
+                              ],
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    // Badge de estado en la esquina superior derecha
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _buildLoanStatusBadge(loan),
+                    ),
+                  ],
                 );
               },
             ),
+            if (loans.length > 2)
+              Center(
+                child: IconButton(
+                  icon: Icon(
+                      _showAllLoans ? Icons.expand_less : Icons.expand_more,
+                      color: Colors.grey[700]),
+                  tooltip: _showAllLoans ? 'Ver menos' : 'Ver más',
+                  onPressed: () {
+                    setState(() {
+                      _showAllLoans = !_showAllLoans;
+                    });
+                  },
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -1229,21 +1111,30 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
     // Obtener los préstamos completos
     final loans = await supervisorProvider.getLoansByIds(loanIds);
 
-    // Filtrar clientes con saldo actual > 0
-    final clientesConSaldo = clientes.where((cliente) {
-      final loanId = cliente['loan_id'] is List
-          ? cliente['loan_id'][0]
-          : cliente['loan_id'];
-      final prestamo = loans.firstWhere(
-        (loan) => loan['id'] == loanId,
-        orElse: () => {'current_due': 0.0},
-      );
-      final saldoActual = prestamo['current_due'];
-      if (saldoActual is num) {
-        return saldoActual > 0;
-      }
-      return false;
-    }).toList();
+    // Filtrar clientes con saldo actual > 0 solo en pendientes y payment_amount > 0
+    List clientesConSaldo;
+    if (status == 'pending') {
+      clientesConSaldo = clientes.where((cliente) {
+        final loanId = cliente['loan_id'] is List
+            ? cliente['loan_id'][0]
+            : cliente['loan_id'];
+        final prestamo = loans.firstWhere(
+          (loan) => loan['id'] == loanId,
+          orElse: () => {'current_due': 0.0},
+        );
+        final saldoActual = prestamo['current_due'];
+        final paymentAmount = (cliente['payment_amount'] ?? 0.0) is num
+            ? (cliente['payment_amount'] ?? 0.0).toDouble()
+            : double.tryParse(cliente['payment_amount']?.toString() ?? '0') ??
+                0.0;
+        if (saldoActual is num) {
+          return saldoActual > 0 && paymentAmount > 0;
+        }
+        return false;
+      }).toList();
+    } else {
+      clientesConSaldo = clientes;
+    }
 
     showDialog(
       context: context,
@@ -1377,5 +1268,149 @@ class _SupervisorKpiScreenState extends State<SupervisorKpiScreen>
       default:
         return Iconsax.info_circle;
     }
+  }
+
+  int _calcularPendientesComoGestor(
+      List<dynamic> payments, SupervisorProvider supervisorProvider,
+      {List<String> estadosPermitidos = const ['pending', 'late']}) {
+    final selectedDateStr = DateFormat('yyyy-MM-dd').format(_startDate);
+    final Set<dynamic> processedLoans = {};
+    int count = 0;
+    for (var pago in payments) {
+      final paymentDate = pago['payment_date']?.toString().substring(0, 10);
+      final status = (pago['payment_status'] ?? '').toString().toLowerCase();
+      final paymentAmount = (pago['payment_amount'] ?? 0.0) is num
+          ? (pago['payment_amount'] ?? 0.0).toDouble()
+          : double.tryParse(pago['payment_amount']?.toString() ?? '0') ?? 0.0;
+      double paidAmount = 0.0;
+      if (pago['payment_met'] == 'mixto') {
+        paidAmount = (pago['paid_amount_cash'] ?? 0.0).toDouble() +
+            (pago['paid_amount_transferencia'] ?? 0.0).toDouble();
+      } else {
+        paidAmount = (pago['paid_amount'] ?? 0.0).toDouble();
+      }
+      final loanId = (pago['loan_id'] is List && pago['loan_id'].isNotEmpty)
+          ? pago['loan_id'][0]
+          : pago['loan_id'];
+      if (paymentDate != selectedDateStr) continue;
+      if (!(status == 'pending' || status == 'late')) continue;
+      if ((paymentAmount - paidAmount) <= 0.0) continue;
+      if (loanId == null || processedLoans.contains(loanId)) continue;
+      processedLoans.add(loanId);
+      count++;
+    }
+    return count;
+  }
+
+  int _calcularCompletados(List<dynamic> payments) {
+    int completedCount = 0;
+    final Set<dynamic> processedLoans = {};
+
+    for (var p in payments) {
+      final status = p['status']?.toString() ??
+          p['payment_status']?.toString() ??
+          'pending';
+      final loanStatus = p['loan_status']?.toString() ?? '';
+      if (loanStatus == 'refinanced' ||
+          loanStatus == 'renewed' ||
+          loanStatus == 'cancelled') continue;
+
+      final loanId = p['loanId'] ??
+          (p['loan_id'] is List ? p['loan_id'][0] : p['loan_id']);
+
+      if ((status == 'paid' || status == 'overpaid' || status == 'partial') &&
+          !processedLoans.contains(loanId)) {
+        completedCount++;
+        processedLoans.add(loanId);
+      }
+    }
+    return completedCount;
+  }
+
+  int _contarClientesPendientesUnicos(SupervisorProvider supervisorProvider) {
+    final payments = supervisorProvider.rangeKpis['payments'] ?? [];
+    final loans = supervisorProvider.rangeKpis['loans'] ?? [];
+    final clientesPendientes =
+        payments.where((p) => p['payment_status'] == 'pending').toList();
+    final clientesPendientesConSaldo = clientesPendientes.where((cliente) {
+      final loanId = cliente['loan_id'] is List
+          ? cliente['loan_id'][0]
+          : cliente['loan_id'];
+      final prestamo = loans.firstWhere(
+        (loan) => loan['id'] == loanId,
+        orElse: () => {'current_due': 0.0},
+      );
+      final saldoActual = prestamo['current_due'];
+      final paymentAmount = (cliente['payment_amount'] ?? 0.0) is num
+          ? (cliente['payment_amount'] ?? 0.0).toDouble()
+          : double.tryParse(cliente['payment_amount']?.toString() ?? '0') ??
+              0.0;
+      if (saldoActual is num) {
+        return saldoActual > 0 && paymentAmount > 0;
+      }
+      return false;
+    }).toList();
+    // Agrupar por cliente (partner_id)
+    final Set<dynamic> clientesUnicos = {};
+    for (var cliente in clientesPendientesConSaldo) {
+      final partnerId =
+          (cliente['partner_id'] is List && cliente['partner_id'].isNotEmpty)
+              ? cliente['partner_id'][0]
+              : cliente['partner_id'];
+      clientesUnicos.add(partnerId);
+    }
+    return clientesUnicos.length;
+  }
+
+  Color _getEfficiencyColor(double efficiency) {
+    if (efficiency >= 0.8) return Colors.green;
+    if (efficiency >= 0.6) return Colors.orange;
+    return Colors.red;
+  }
+
+  Widget _buildLoanStatusBadge(Map<String, dynamic> loan) {
+    final status = loan['loan_status'] ?? 'pending';
+    final color = getLoanStatusColor(status);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.withOpacity(0.7), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.10),
+                blurRadius: 4,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                getLoanStatusIcon(status),
+                size: 12,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                getLoanStatusLabel(status),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

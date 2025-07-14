@@ -16,6 +16,7 @@ import '../../src/providers/auth_provider.dart';
 import '../../src/providers/loan_provider.dart';
 import '../../src/providers/payment_provider.dart';
 import '../../src/providers/cliente_provider.dart';
+import 'package:lottie/lottie.dart';
 
 class HomeScreen extends StatefulWidget {
   final int? initialIndex;
@@ -288,20 +289,14 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                width: 40,
-                height: 40,
-                child: CircularProgressIndicator(),
+                width: 80,
+                height: 80,
+                child: Lottie.asset('assets/animations/loading.json'),
               ),
               const SizedBox(height: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Iconsax.timer, // Iconsax para cargando
-                    size: 16,
-                    color: Colors.grey[700],
-                  ),
-                  const SizedBox(width: 8),
                   Text(
                     'Cargando...',
                     style: TextStyle(

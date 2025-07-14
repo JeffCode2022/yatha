@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:iconsax_flutter/iconsax_flutter.dart'; // Importamos Iconsax
 import '../../../src/providers/auth_provider.dart';
 import '../../../src/providers/kpi_provider.dart';
+import 'package:lottie/lottie.dart';
 
 import '../home_screen.dart';
 
@@ -115,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen>
       },
     );
   }
-  
+
   // Método para mostrar alerta de error de inicio de sesión
   void _showLoginErrorAlert() {
     showDialog(
@@ -202,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen>
       setState(() {
         _errorMessage = "Correo o contraseña incorrectos.";
       });
-      
+
       // Mostrar alerta de error
       _showLoginErrorAlert();
     }
@@ -249,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ),
                     ),
-                    
+
                     // Texto YATHA FINANCIERA
                     const SizedBox(height: 16),
                     Column(
@@ -277,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ],
                 ),
               ),
-              
+
               // Tarjeta de login
               Expanded(
                 child: Container(
@@ -327,9 +328,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ],
                             ),
-                            
+
                             const SizedBox(height: 30),
-                            
+
                             // Campo de email
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,7 +398,8 @@ class _LoginScreenState extends State<LoginScreen>
                                     child: Row(
                                       children: [
                                         Icon(
-                                          Iconsax.info_circle, // Iconsax para información
+                                          Iconsax
+                                              .info_circle, // Iconsax para información
                                           color: colorError,
                                           size: 12,
                                         ),
@@ -424,7 +426,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 Row(
                                   children: [
                                     Icon(
-                                      Iconsax.password_check, // Iconsax para contraseña
+                                      Iconsax
+                                          .password_check, // Iconsax para contraseña
                                       color: colorDarkText,
                                       size: 16,
                                     ),
@@ -471,8 +474,10 @@ class _LoginScreenState extends State<LoginScreen>
                                     suffixIcon: IconButton(
                                       icon: Icon(
                                         _obscurePassword
-                                            ? Iconsax.eye_slash // Iconsax para ocultar contraseña
-                                            : Iconsax.eye, // Iconsax para mostrar contraseña
+                                            ? Iconsax
+                                                .eye_slash // Iconsax para ocultar contraseña
+                                            : Iconsax
+                                                .eye, // Iconsax para mostrar contraseña
                                         color: colorLightText,
                                         size: 18,
                                       ),
@@ -498,7 +503,8 @@ class _LoginScreenState extends State<LoginScreen>
                                     child: Row(
                                       children: [
                                         Icon(
-                                          Iconsax.info_circle, // Iconsax para información
+                                          Iconsax
+                                              .info_circle, // Iconsax para información
                                           color: colorError,
                                           size: 12,
                                         ),
@@ -550,12 +556,10 @@ class _LoginScreenState extends State<LoginScreen>
                               onPressed: _isLoading ? null : _login,
                               icon: _isLoading
                                   ? SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        color: colorWhite,
-                                        strokeWidth: 2,
-                                      ),
+                                      height: 24,
+                                      width: 24,
+                                      child: Lottie.asset(
+                                          'assets/animations/loading.json'),
                                     )
                                   : Icon(
                                       Iconsax.login, // Iconsax para login

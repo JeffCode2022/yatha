@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:yatha_app/src/config/environment.dart';
-import 'package:yatha_app/src/utils/logger.dart';
 
 class ApiClient {
   static String get _baseUrl => Environment.apiUrl;
@@ -21,9 +20,9 @@ class ApiClient {
       final url = Uri.parse('$_baseUrl$endpoint');
       final mergedHeaders = {..._defaultHeaders, ...?headers};
 
-      Logger.debug('POST Request to: $url');
-      Logger.debug('Headers: $mergedHeaders');
-      Logger.debug('Body: ${jsonEncode(body)}');
+      // Logger.debug('POST Request to: $url');
+      // Logger.debug('Headers: $mergedHeaders');
+      // Logger.debug('Body: ${jsonEncode(body)}');
 
       final response = await http.post(
         url,
@@ -31,12 +30,12 @@ class ApiClient {
         body: jsonEncode(body),
       );
 
-      Logger.debug('Response Status: ${response.statusCode}');
-      Logger.debug('Response Body: ${response.body}');
+      // Logger.debug('Response Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data.containsKey('error')) {
+          print('ODDO ERROR BODY: ${response.body}');
           throw Exception(data['error']['message'] ?? 'Error desconocido');
         }
         return data;
@@ -44,7 +43,7 @@ class ApiClient {
         throw Exception('Error HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      Logger.error('Error en POST request', e);
+      // Logger.error('Error en POST request', e);
       rethrow;
     }
   }

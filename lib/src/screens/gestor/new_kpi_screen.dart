@@ -7,6 +7,8 @@ import 'package:yatha_app/src/providers/auth_provider.dart';
 import 'package:yatha_app/src/providers/kpi_provider.dart';
 import 'package:yatha_app/src/utils/theme/app_theme.dart';
 import 'package:yatha_app/src/utils/widgets/progress_indicator_widget.dart';
+import 'package:yatha_app/src/providers/cliente_provider.dart';
+import 'package:lottie/lottie.dart';
 
 class NewKpiScreen extends StatefulWidget {
   const NewKpiScreen({Key? key}) : super(key: key);
@@ -25,6 +27,9 @@ class _NewKpiScreenState extends State<NewKpiScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   bool _isMonthly = false;
+  List<Map<String, dynamic>> _filteredPagosPendientesPorPrestamo = [];
+  // Nueva lista base para los pagos del día
+  List<Map<String, dynamic>> _pagosDelDiaBase = [];
 
   @override
   void initState() {
@@ -101,6 +106,7 @@ class _NewKpiScreenState extends State<NewKpiScreen>
         setState(() {
           _filteredPayments = List.from(kpiProvider.payments);
         });
+        _actualizarPagosDelDia(); // Actualizar la lista de pagos del día
       }
     }
   }
@@ -118,6 +124,27 @@ class _NewKpiScreenState extends State<NewKpiScreen>
                   ? payment['partnerId'][1].toString().toLowerCase()
                   : '';
           final paymentNumber = payment['name']?.toString().toLowerCase() ?? '';
+          final searchLower = query.toLowerCase();
+          return clientName.contains(searchLower) ||
+              paymentNumber.contains(searchLower);
+        }).toList();
+      }
+    });
+  }
+
+  void _filterPagosPendientes(
+      String query, List<Map<String, dynamic>> pagosPendientesPorPrestamo) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredPagosPendientesPorPrestamo =
+            List.from(_pagosDelDiaBase); // Restaurar la base
+      } else {
+        _filteredPagosPendientesPorPrestamo = _pagosDelDiaBase.where((pago) {
+          final clientName =
+              pago['partnerId'] != null && pago['partnerId'] is List
+                  ? pago['partnerId'][1].toString().toLowerCase()
+                  : '';
+          final paymentNumber = pago['name']?.toString().toLowerCase() ?? '';
           final searchLower = query.toLowerCase();
           return clientName.contains(searchLower) ||
               paymentNumber.contains(searchLower);
@@ -154,6 +181,7 @@ class _NewKpiScreenState extends State<NewKpiScreen>
         _selectedDate = picked;
       });
       await _loadKpis();
+      _actualizarPagosDelDia(); // Actualizar la lista de pagos del día
     }
   }
 
@@ -207,7 +235,8 @@ class _NewKpiScreenState extends State<NewKpiScreen>
                               const SizedBox(height: 20),
                               _buildProgressCard(kpiProvider),
                               const SizedBox(height: 20),
-                              _buildPaymentsList(kpiProvider),
+                              _buildPaymentsList(
+                                  kpiProvider, kpiProvider.payments),
                               const SizedBox(
                                   height: 80), // Espacio adicional al final
                             ],
@@ -264,23 +293,14 @@ class _NewKpiScreenState extends State<NewKpiScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: CircularProgressIndicator(
-                    color: AppTheme.colorScheme.primary,
-                    strokeWidth: 3,
-                  ),
+                  width: 60,
+                  height: 60,
+                  child: Lottie.asset('assets/animations/loading.json'),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Iconsax.timer, // Iconsax en lugar de Material Icons
-                      size: 16,
-                      color: Colors.grey[700],
-                    ),
-                    const SizedBox(width: 8),
                     const Text(
                       'Cargando datos...',
                       style: TextStyle(
@@ -707,9 +727,14 @@ class _NewKpiScreenState extends State<NewKpiScreen>
   }
 
   Widget _buildKpiMetricsGrid(KpiProvider provider) {
-    final totalPagos = (provider.statusCounts['ontime'] ?? 0) +
-        (provider.statusCounts['late'] ?? 0) +
-        (provider.statusCounts['pending'] ?? 0);
+    // Usar la lista base para el contador y los indicadores
+    final cantidadPendientesHoy = _pagosDelDiaBase.where((p) {
+      final status = p['status']?.toString()?.toLowerCase();
+      final expectedAmount = (p['expectedAmount'] ?? 0.0).toDouble();
+      final paidAmount = (p['paidAmount'] ?? 0.0).toDouble();
+      return status == 'pending' && (expectedAmount - paidAmount) > 0.0;
+    }).length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -739,7 +764,7 @@ class _NewKpiScreenState extends State<NewKpiScreen>
             ),
             _buildModernMetricCard(
               label: 'Pendientes',
-              value: provider.statusCounts['pending'] ?? 0,
+              value: cantidadPendientesHoy,
               color: const Color(0xFFFF6D00), // Naranja fuerte
               icon: Iconsax.timer,
               subtitle: 'Pagos sin realizar',
@@ -792,7 +817,7 @@ class _NewKpiScreenState extends State<NewKpiScreen>
             Text(
               label,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 13,
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -814,10 +839,16 @@ class _NewKpiScreenState extends State<NewKpiScreen>
     );
   }
 
-  Widget _buildPaymentsList(KpiProvider provider) {
-    if (provider.payments.isEmpty) {
-      return _buildEmptyState();
-    }
+  Widget _buildPaymentsList(KpiProvider provider,
+      List<Map<String, dynamic>> pagosPendientesPorPrestamo) {
+    // Usar la lista filtrada y única para mostrar los resultados
+    final tienePagos = _filteredPagosPendientesPorPrestamo.isNotEmpty;
+
+    // Filtro para que solo se muestren pagos con expectedAmount > 0
+    final pagosParaDesglose = _filteredPagosPendientesPorPrestamo.where((p) {
+      final expectedAmount = (p['expectedAmount'] ?? 0.0).toDouble();
+      return expectedAmount > 0;
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -850,118 +881,71 @@ class _NewKpiScreenState extends State<NewKpiScreen>
             ],
           ),
         ),
-        _buildSearchBar(),
-        const SizedBox(height: 12),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _filteredPayments.length,
-          itemBuilder: (context, index) =>
-              _buildPaymentCard(provider, _filteredPayments[index], index),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Colors.grey[300]!,
+            ),
+          ),
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(color: Colors.black87, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Buscar pago...',
+              prefixIcon: Icon(Iconsax.search_normal,
+                  color: Colors.grey[600],
+                  size: 16), // Iconsax en lugar de Material Icons
+              border: InputBorder.none,
+              hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            onChanged: (query) => _filterPagosPendientes(
+                query, _filteredPagosPendientesPorPrestamo),
+          ),
         ),
+        const SizedBox(height: 12),
+        // Solo la lista muestra el estado vacío, no todo el bloque
+        if (pagosParaDesglose.isEmpty)
+          _buildCompactEmptyState()
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: pagosParaDesglose.length,
+            itemBuilder: (context, index) =>
+                _buildPaymentCard(provider, pagosParaDesglose[index], index),
+          ),
       ],
     );
   }
 
-  Widget _buildEmptyState() {
+  // Estado vacío compacto solo para la lista
+  Widget _buildCompactEmptyState() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey[200]!,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            spreadRadius: 0,
-          ),
-        ],
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Iconsax.clipboard_tick, // Iconsax en lugar de Material Icons
-              size: 32,
-              color: Colors.blue[400],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
+          Icon(Iconsax.clipboard_tick, size: 20, color: Colors.blue[400]),
+          const SizedBox(width: 10),
+          const Text(
             'Sin pagos para mostrar',
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue[700],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'No hay pagos registrados para la fecha seleccionada',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.blue[600],
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () => _selectDate(context),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.blue[700],
-              side: BorderSide(color: Colors.blue[300]!),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            icon: Icon(Iconsax.calendar_1,
-                size: 14,
-                color: Colors.blue[700]), // Iconsax en lugar de Material Icons
-            label: Text(
-              'Cambiar fecha',
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-              ),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.blueGrey,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.grey[300]!,
-        ),
-      ),
-      child: TextField(
-        controller: _searchController,
-        style: const TextStyle(color: Colors.black87, fontSize: 14),
-        decoration: InputDecoration(
-          hintText: 'Buscar pago...',
-          prefixIcon: Icon(Iconsax.search_normal,
-              color: Colors.grey[600],
-              size: 16), // Iconsax en lugar de Material Icons
-          border: InputBorder.none,
-          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        ),
-        onChanged: _filterPayments,
       ),
     );
   }
@@ -1199,5 +1183,55 @@ class _NewKpiScreenState extends State<NewKpiScreen>
         );
       }
     }
+  }
+
+  // Nuevo método para actualizar la lista de pagos del día
+  void _actualizarPagosDelDia() {
+    final kpiProvider = Provider.of<KpiProvider>(context, listen: false);
+    final clienteProvider =
+        Provider.of<ClienteProvider>(context, listen: false);
+    final prestamosVigentes = clienteProvider.loans;
+    final selectedDateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+
+    // Filtrar préstamos vigentes (excluyendo refinanciados, renovados o cancelados)
+    final prestamosFiltrados = prestamosVigentes.where((prestamo) {
+      final loanStatus =
+          (prestamo['loan_status'] ?? '').toString().toLowerCase();
+      return loanStatus != 'refinanced' &&
+          loanStatus != 'renewed' &&
+          loanStatus != 'cancelled';
+    }).toList();
+
+    // Para cada préstamo vigente, buscar todos los pagos (pendientes y pagados) del día seleccionado
+    final List<Map<String, dynamic>> pagosDelDiaPorPrestamo = [];
+    for (var prestamo in prestamosFiltrados) {
+      final loanId = prestamo['id'] ??
+          (prestamo['loan_id'] is List && prestamo['loan_id'].isNotEmpty
+              ? prestamo['loan_id'][0]
+              : prestamo['loan_id']);
+      final pagos = kpiProvider.payments.where((p) {
+        final pLoanId = (p['loanId'] is List && p['loanId'].isNotEmpty)
+            ? p['loanId'][0]
+            : p['loanId'];
+        final paymentDate = p['paymentDate']?.toString().substring(0, 10);
+        return pLoanId == loanId && paymentDate == selectedDateStr;
+      });
+      pagosDelDiaPorPrestamo
+          .addAll(pagos.map((p) => Map<String, dynamic>.from(p)));
+    }
+
+    // Eliminar duplicados por id de pago
+    final pagosUnicos = <dynamic, Map<String, dynamic>>{};
+    for (var pago in pagosDelDiaPorPrestamo) {
+      final pagoId = pago['id'] ?? pago['name'];
+      pagosUnicos[pagoId] = pago;
+    }
+    final listaPagosFinal = pagosUnicos.values.toList();
+
+    setState(() {
+      _pagosDelDiaBase = List.from(listaPagosFinal); // Guardar la base
+      _filteredPagosPendientesPorPrestamo =
+          List.from(listaPagosFinal); // Mostrar todos por defecto
+    });
   }
 }

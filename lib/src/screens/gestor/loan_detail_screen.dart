@@ -5,6 +5,7 @@ import '../../../src/providers/auth_provider.dart';
 import '../../../src/providers/loan_provider.dart';
 import '../../utils/theme/app_theme.dart';
 import '../../utils/widgets/payment_modal.dart';
+import 'package:lottie/lottie.dart';
 
 class LoanDetailScreen extends StatefulWidget {
   const LoanDetailScreen({Key? key}) : super(key: key);
@@ -157,9 +158,11 @@ class _LoanDetailScreenState extends State<LoanDetailScreen>
                 Expanded(
                   child: loanProvider.isLoading
                       ? Center(
-                          child: CircularProgressIndicator(
-                            color: AppTheme.colorScheme.primary,
-                            strokeWidth: 3,
+                          child: SizedBox(
+                            width: 60,
+                            height: 60,
+                            child:
+                                Lottie.asset('assets/animations/loading.json'),
                           ),
                         )
                       : loanProvider.loanPayments.isEmpty

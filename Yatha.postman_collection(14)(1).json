@@ -1,0 +1,246 @@
+{
+	"info": {
+		"_postman_id": "0c3c0c6a-11b2-489c-8d02-3c537ea1b2c9",
+		"name": "Yatha",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "25727479"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Auth final",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"params\": {\r\n    \"db\": \"prestamovf\",\r\n    \"login\": \"gestor_diario@yatha.com\",\r\n    \"password\": \"1234\"\r\n  }\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "https://discrete-truly-possum.ngrok-free.app/api/roles/auth"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Mobile Endpoints",
+			"item": [
+				{
+					"name": "Supervisor",
+					"item": [
+						{
+							"name": "Obtener gestores",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"method\": \"call\",\r\n  \"params\": {\r\n    \"service\": \"object\",\r\n    \"method\": \"execute\",\r\n    \"args\": [\r\n      \"prestamovf\",                // Nombre de la base de datos\r\n       8,   // UID del supervisor\r\n      \"1234\",                       // Contraseña del usuario\r\n      \"res.users\",                  // Modelo en el que realizamos la consulta\r\n      \"search_read\",                // Método a usar para leer los registros\r\n      [[\"active\", \"=\", true], [\"x_role\", \"=\", \"gestor\"]],  // Filtro para obtener usuarios activos y con x_role = \"gestor\"\r\n      [\"id\", \"partner_id\", \"x_role\"]  // Los campos que quieres obtener\r\n    ]\r\n  }\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": "https://5706-38-25-28-10.ngrok-free.app/jsonrpc"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Gestor",
+					"item": [
+						{
+							"name": "Mensuales",
+							"item": [
+								{
+									"name": "Obtener Prestamos mensuales",
+									"protocolProfileBehavior": {
+										"disableBodyPruning": true
+									},
+									"request": {
+										"method": "GET",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"method\": \"call\",\r\n  \"params\": {\r\n    \"service\": \"object\",\r\n    \"method\": \"execute\",\r\n    \"args\": [\r\n      \"prestamovf\",  // Nombre de la base de datos\r\n      2,           // UID del usuario (lo puedes obtener desde la autenticación)\r\n      \"Yatha2906\",     // Contraseña del usuario\r\n      \"loan.management\",   // Nombre del modelo (tabla)\r\n      \"search_read\",       // Método para realizar la búsqueda y leer los datos\r\n      [\r\n        [\"payment_period\", \"=\", \"monthly\"],  // Filtro para obtener solo registros con payment_period == 'monthly'\r\n        [\"loan_status\", \"=\", \"pending\"]     // Filtro para obtener solo los registros con loan_status == 'pending'\r\n    \r\n      ],\r\n      [\r\n        \"id\", \"partner_id\", \"partner_salesperson\", \"payment_parts\", \"days_overdue\", \"create_uid\",\r\n        \"write_uid\", \"name\", \"prestamo_anterior\", \"payment_period\", \"loan_status\", \"payment_frequency\",\r\n        \"start_date\", \"first_payment_date\", \"due_date\", \"partner_latitude\", \"partner_longitude\", \r\n        \"create_date\", \"write_date\", \"total_interest_paid\", \"loan_amount\", \"interest_rate\", \r\n        \"real_interest_rate\", \"total_amount\", \"profit\", \"current_due\", \"payment_amount\", \r\n        \"amount_due_today\", \"total_cash_payments\", \"total_transfer_payments\"\r\n      ]\r\n    ]\r\n  }\r\n}\r\n",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "https://smashing-touching-rat.ngrok-free.app/jsonrpc"
+									},
+									"response": []
+								},
+								{
+									"name": "Pago de prestamos mensuales",
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n\"jsonrpc\": \"2.0\",\r\n\"params\": {\r\n    \"id\": 32,\r\n    \"payment_met\": \"cash\",\r\n    \"interest_paid\": 50,\r\n    \"capital_paid\": 400\r\n  }\r\n}\r\n",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "https://5706-38-25-28-10.ngrok-free.app/api/payment/monthly/update"
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "Diarios",
+							"item": [
+								{
+									"name": "Obtener Prestamos diarios",
+									"protocolProfileBehavior": {
+										"disableBodyPruning": true
+									},
+									"request": {
+										"auth": {
+											"type": "noauth"
+										},
+										"method": "GET",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"method\": \"call\",\r\n  \"params\": {\r\n    \"service\": \"object\",\r\n    \"method\": \"execute\",\r\n    \"args\": [\r\n      \"prestamovf\",  // Nombre de la base de datos\r\n      6,                   // UID del usuario (lo puedes obtener desde la autenticación)\r\n      \"1234\",    // Contraseña del usuario\r\n      \"loan.management\",   // Nombre del modelo (tabla)\r\n      \"search_read\",       // Método para realizar la búsqueda y leer los datos\r\n      [\r\n        [\"payment_period\", \"=\", \"daily\"],  // Filtro para obtener solo registros con payment_period == 'daily'\r\n        [\"loan_status\", \"=\", \"pending\"],     // Filtro para obtener solo los registros con loan_status == 'pending'\r\n        [\"partner_id.name\", \"like\", \"\"],  // Filtro para obtener solo los registros con el nombre del partner == 'ANITA HUANSI VASQUEZ\r\n        [\"start_date\", \">=\", \"2025-04-22\"],  // FECHA INICIAL DEL RANGO\r\n        [\"start_date\", \"<=\", \"2025-04-22\"],  // FECHA FINAL DEL RANGO\r\n         [\"partner_salesperson.id\", \"=\", 6]  // Filtro para que solo se obtengan los prestamos de este gestor con UID obtenido en el login\r\n      ],\r\n      [\r\n        \"id\", \"partner_id\", \"partner_salesperson\", \"payment_parts\", \"days_overdue\", \"create_uid\",\r\n        \"write_uid\", \"name\", \"prestamo_anterior\", \"payment_period\", \"loan_status\", \"payment_frequency\",\r\n        \"start_date\", \"first_payment_date\", \"due_date\", \"partner_latitude\", \"partner_longitude\", \r\n        \"create_date\", \"write_date\", \"total_interest_paid\", \"loan_amount\", \"interest_rate\", \r\n        \"real_interest_rate\", \"total_amount\", \"profit\", \"current_due\", \"payment_amount\", \r\n        \"amount_due_today\", \"total_cash_payments\", \"total_transfer_payments\"\r\n      ]\r\n    ]\r\n  }\r\n}\r\n",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "https://discrete-truly-possum.ngrok-free.app/jsonrpc"
+									},
+									"response": []
+								},
+								{
+									"name": "Pago de prestamos diarios",
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"params\": {\r\n    \"id\": 1,\r\n    \"paid_amount\": 11,\r\n    \"payment_met\": \"cash\"\r\n  }\r\n}\r\n",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "https://8d5b-38-25-28-10.ngrok-free.app/api/payment/daily/update"
+									},
+									"response": []
+								},
+								{
+									"name": "Pago de prestamos Mixto",
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"params\": {\r\n    \"id\": 31,\r\n    \"paid_amount_cash\": 1.0,\r\n    \"paid_amount_transferencia\": 10.0,\r\n    \"payment_met\": \"mixto\"\r\n\r\n  }\r\n}\r\n",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "https://8d5b-38-25-28-10.ngrok-free.app/api/payment/daily/update"
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "Mapa",
+							"item": [
+								{
+									"name": "Obtener prestamos para el día de hoy",
+									"protocolProfileBehavior": {
+										"disableBodyPruning": true
+									},
+									"request": {
+										"method": "GET",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"method\": \"call\",\r\n  \"params\": {\r\n    \"model\": \"loan.payment\",\r\n    \"method\": \"search_read\",\r\n    \"args\": [\r\n      [\r\n        [\"loan_id\", \"!=\", false], // SOLO PARA ASEGURAR QUE EL PAGO PERTENEZCA A UN PRESTAMO\r\n        [\"loan_id.partner_salesperson\", \"=\", 6], // ESTE ES EL FILTRO POR UID\r\n        [\"payment_date\", \">=\", \"2025-05-01\"],  // FECHA INICIAL DEL RANGO\r\n        [\"payment_date\", \"<=\", \"2025-05-30\"],  // FECHA FINAL DEL RANGO\r\n        [\"payment_status\" , \"=\", \"pending\"] // SOLO LOS PAGOS PENDING. CUALQUIERO OTRO ESTADO SE QUITA\r\n      ],\r\n      [\"loan_id\", \"payment_date\"]\r\n    ],\r\n    \"kwargs\": {}\r\n  }\r\n}\r\n",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "https://discrete-truly-possum.ngrok-free.app/web/dataset/call_kw"
+									},
+									"response": []
+								},
+								{
+									"name": "Obtener coordenadas",
+									"protocolProfileBehavior": {
+										"disableBodyPruning": true
+									},
+									"request": {
+										"method": "GET",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"method\": \"call\",\r\n  \"params\": {\r\n    \"service\": \"object\",\r\n    \"method\": \"execute\",\r\n    \"args\": [\r\n      \"prestamovf\",  // Nombre de la base de datos\r\n      6,                   // UID del usuario (lo puedes obtener desde la autenticación)\r\n      \"1234\",    // Contraseña del usuario\r\n      \"loan.management\",   // Nombre del modelo (tabla)\r\n      \"search_read\",       // Método para realizar la búsqueda y leer los datos\r\n      [\r\n        [\"loan_status\", \"=\", \"pending\"],     // Filtro para obtener solo los registros con loan_status == 'pending'\r\n        [\"partner_salesperson.id\", \"=\", 6],\r\n        [\"name\", \"=\", \"PRST-00003\"]  // Filtro para que solo se obtengan los prestamos de este gestor con UID obtenido en el login\r\n\r\n      ],\r\n      [\r\n        \"id\", \"partner_latitude\", \"partner_longitude\"\r\n      ]\r\n    ]\r\n  }\r\n}\r\n",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "https://cda7-38-25-28-10.ngrok-free.app/jsonrpc"
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "Obtener pagos",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"jsonrpc\": \"2.0\",\r\n  \"method\": \"call\",\r\n  \"params\": {\r\n    \"service\": \"object\",\r\n    \"method\": \"execute\",\r\n    \"args\": [\r\n      \"prestamovf\",      // Nombre de la base de datos\r\n      6,                        // UID del usuario\r\n      \"1234\",         // Contraseña del usuario\r\n      \"loan.payment\",           // Modelo de los pagos de los préstamos\r\n      \"search_read\",            // Método para leer los registros\r\n      [[\"loan_id\", \"=\", \"PRST-00003\"]],  // Filtro por loan_id específico\r\n      [\r\n        \"id\", \"loan_id\", \"partner_id\", \"partner_salesperson\", \"create_uid\", \"write_uid\", \"partner_address\",\r\n        \"name\", \"payment_status\", \"payment_met\", \"date_status\", \"payment_period\", \"payment_date\",\r\n        \"actual_payment_date\", \"observations\", \"create_date\", \"write_date\", \"loan_amount\", \"total_amount\",\r\n        \"paid_amount_total\", \"current_due\", \"payment_amount\", \"paid_amount\", \"loan_profit\", \"loan_capital\",\r\n        \"interest_paid\", \"capital_paid\", \"monthly_total_due\"\r\n      ]\r\n    ]\r\n  }\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": "https://5706-38-25-28-10.ngrok-free.app/jsonrpc"
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		}
+	]
+}
